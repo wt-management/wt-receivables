@@ -547,11 +547,11 @@ let _mf={cls:'',q:''};
 function viewMgmt(){
   const sum=(RAW.mgmt&&RAW.mgmt.summary)||{};
   const items=M.filter(i=>(!_mf.cls||i.cls===_mf.cls)&&(!_mf.q||((i.name||'')+(i.mgr||'')).toLowerCase().indexOf(_mf.q.toLowerCase())>=0)).sort((a,b)=>b.ar-a.ar);
-  let h='<div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">';
+  let h='<div class="kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px">';
   [['집중관리','수금 실행 관리'],['검토필요','분류·조치 검토'],['관리제외','대손·매출취소 처리 예정']].forEach(([c,d])=>{const s=sum[c]||{cnt:M.filter(i=>i.cls===c).length,ar:M.filter(i=>i.cls===c).reduce((x,i)=>x+i.ar,0)};
-    h+=`<div class="kpi clk" onclick="_mf.cls=_mf.cls==='${c}'?'':'${c}';render()" style="${_mf.cls===c?'outline:2px solid '+(CLS_META[c].c):''}"><div class="l">${clsChip(c)} ${d}</div><div class="v">${s.cnt}건</div><div class="s">${eok2(s.ar)}</div></div>`;});
+    h+=`<div class="kpi clk" style="flex:1 1 200px;min-width:0;${_mf.cls===c?'outline:2px solid '+(CLS_META[c].c):''}" onclick="_mf.cls=_mf.cls==='${c}'?'':'${c}';render()"><div class="l">${clsChip(c)} ${d}</div><div class="v">${s.cnt}건</div><div class="s">${eok2(s.ar)}</div></div>`;});
   const tot=M.reduce((s,i)=>s+i.ar,0);
-  h+=`<div class="kpi"><div class="l">관리대상 합계 <span class="hint">(잔액 보유 채권)</span></div><div class="v">${M.length}건</div><div class="s">${eok2(tot)}</div></div></div>`;
+  h+=`<div class="kpi" style="flex:1 1 200px;min-width:0"><div class="l">관리대상 합계 <span class="hint">(잔액 보유 채권)</span></div><div class="v">${M.length}건</div><div class="s">${eok2(tot)}</div></div></div>`;
   h+=`<div class="bar-row"><input class="inp" style="width:230px" placeholder="거래처·담당자 검색" value="${esc(_mf.q)}" oninput="_mf.q=this.value;render()">${_mf.cls?`<button class="btn" onclick="_mf.cls='';render()">필터 해제: ${_mf.cls} ✕</button>`:''}<span class="hint">${items.length}건 표시 · 분류·의견은 행 클릭 후 수정</span></div>`;
   h+='<div class="card" style="padding:0;overflow:auto;max-height:70vh"><table class="dt"><thead><tr><th>#</th><th class="l">거래처명</th><th class="l">발생</th><th class="l">경과</th><th>미수금액(원)</th><th class="l">담당자</th><th class="l">현재상태</th><th class="l">분류</th><th class="l">분류 근거</th><th class="l">관리 의견</th></tr></thead><tbody>';
   h+=items.map((i,n)=>`<tr class="clk" onclick="openRow('${i.rid}')"><td>${n+1}</td><td class="l"><b>${esc(i.name)}</b>${i._edited?' <span class="chip" style="background:#ecfdf5;color:#047857">수정</span>':''}</td><td class="l">${esc(i.year)}</td><td class="l hint">${esc(i.elapsed)}</td><td><b>${fmt(i.ar)}</b></td><td class="l">${esc(i.mgr)}</td><td class="l">${typeChip(i.state)}</td><td class="l">${clsChip(i.cls)}</td><td class="l memo" title="${esc(i.basis)}">${esc(i.basis)}</td><td class="l memo" title="${esc(i.opinion)}">${esc(i.opinion)}</td></tr>`).join('')
