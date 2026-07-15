@@ -73,7 +73,7 @@ input,select,textarea{font-family:inherit}
 .chip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
 .bar-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 /* 표 */
-.tbl-scroll{overflow-x:auto}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
 .dt th,.dt td{border-bottom:1px solid var(--line2);padding:8px 10px;text-align:right;white-space:nowrap}
 .dt th{color:var(--muted);font-weight:600;font-size:11px;background:#fafbfc;position:sticky;top:0}
@@ -103,8 +103,8 @@ table.rt{width:100%;border-collapse:collapse;font-size:12.5px;min-width:700px}
 .fld textarea{resize:vertical;min-height:56px}
 .editable-note{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:14px}
 /* 로그인 */
-#login{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f172a,#292018);z-index:60}
-.lc{background:#fff;border-radius:18px;padding:40px 34px;width:350px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+#login{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f172a,#292018);z-index:60;padding:16px}
+.lc{background:#fff;border-radius:18px;padding:40px 34px;width:350px;max-width:100%;box-shadow:0 30px 80px rgba(0,0,0,.35)}
 .lc h1{font-size:18px;text-align:center;color:#0f172a}.lc .sub{text-align:center;color:#94a3b8;font-size:13px;margin:4px 0 22px}
 .lc input{width:100%;padding:12px 14px;border:1px solid #e8ebf0;border-radius:10px;margin-bottom:11px}
 .lc button{width:100%;padding:12px;border:0;border-radius:10px;background:#b45309;color:#fff;font-weight:700}
@@ -156,6 +156,23 @@ canvas.chart{max-height:300px}
   .nav{padding:0 8px}.nav a{padding:10px 11px;font-size:12.5px}
   .pagetitle{padding:16px 14px 2px}.wrap{padding:14px 14px 60px}
   body{overflow-x:hidden}
+  .card{padding:14px}
+  .modal{padding:0}
+  .mbox{width:100%;height:100%;max-height:100%;border-radius:0}
+  .fgrid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+  .brand b{font-size:13px}
+  .hbtn{padding:7px 9px;font-size:11.5px}
+  .pagetitle h2{font-size:19px}
+  .kpi{padding:12px 13px}
+  .kpi .v{font-size:19px}
+  .card{padding:12px}
+  .sec{font-size:14px}
+  .bar-row{gap:8px}
+  .bar-row .inp,.bar-row .sel{flex:1 1 140px}
+  .fgrid{grid-template-columns:1fr}
+  .mhd{padding:16px 16px 12px}.mbody{padding:14px 16px 18px}
 }
 </style>
 <script>/* WT_ERRLOG_V1 — 공통 오류수집+요청함 (자동주입 스니펫, 개별 수정 금지) */
