@@ -608,24 +608,23 @@ async function woSet(ridv,st){
 function woChip(st){if(!st)return '<span class="chip" style="background:#f8fafc;color:#94a3b8;border:1px dashed #cbd5e1">미검토</span>';const m=WO_ST[st];return `<span class="chip" style="background:${m.bg};color:${m.c}">${m.l}</span>`;}
 function viewWo(){
   const cands=woCands();
-  const by=st=>cands.filter(x=>{const w=woOf(x.r);return st?(w&&w.st===st):!w;});
-  const un=by(''),cf=by('confirm'),su=by('sue'),ho=by('hold'),sk=by('skip');
+  const cf=cands.filter(x=>{const w=woOf(x.r);return w&&w.st==='confirm';});
   const sum=a=>a.reduce((s,x)=>s+x.r.ar,0);
-  const sumProv=a=>a.reduce((s,x)=>s+x.r.prov,0);
   const addLoss=a=>a.reduce((s,x)=>s+Math.max(0,x.r.ar-x.r.prov),0);
-  const covPct=a=>sum(a)?Math.round(sumProv(a)/sum(a)*100):0;
+  const byTier=n=>cands.filter(x=>woTier(x.r).n===n);
+  const t1=byTier(1),t2=byTier(2),t3=byTier(3);
+  const done=cands.filter(x=>woOf(x.r)),undone=cands.filter(x=>!woOf(x.r));
   document.getElementById('pt-a').innerHTML='<button class="btn" onclick="woCsv()"><i class="bi bi-download"></i> CSV</button> <button class="btn pri" onclick="_woMode=\'doc\';render()"><i class="bi bi-file-earmark-text"></i> 품의서 생성</button>';
   if(_woMode==='doc')return viewWoDoc(cf);
   let h='<div class="editable-note" style="background:#f0f9ff;border-color:#bae6fd;color:#075985">회의 후속: 회수 실익이 없는 채권을 선별해 <b>대손처리 품의 리스트</b>를 확정합니다. 근거는 원본 데이터(폐업·회수불가·충당금·관리분류)에서 자동 수집되며, 최종 판단(확정/소송/보류/제외)만 지정하면 품의서가 만들어집니다.<br>우선순위 등급(추정손실급/회수의문급/요주의급)은 금융기관 자산건전성 분류 관행을 참고해 사건발생여부·충당금커버율·최근상환활동으로 매긴 참고값입니다.</div>';
   h+='<div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">';
-  const t1=cands.filter(x=>woTier(x.r).n===1).length,t2=cands.filter(x=>woTier(x.r).n===2).length,t3=cands.filter(x=>woTier(x.r).n===3).length;
-  h+=`<div class="kpi clk" onclick="_woF='';render()" style="${_woF===''?'outline:2px solid #64748b':''}"><div class="l">후보 전체</div><div class="v">${cands.length}건</div><div class="s">예상손실 ${eok2(addLoss(cands))} · 추정손실급 ${t1} · 회수의문급 ${t2} · 요주의급 ${t3}</div></div>`;
-  h+=`<div class="kpi clk" onclick="_woF='confirm';render()" style="${_woF==='confirm'?'outline:2px solid #b91c1c':''}"><div class="l">🧾 대손 확정(품의)</div><div class="v" style="color:#b91c1c">${cf.length}건</div><div class="s">${eok2(sum(cf))} · 손실 ${eok2(addLoss(cf))}</div></div>`;
-  h+=`<div class="kpi clk" onclick="_woF='sue';render()" style="${_woF==='sue'?'outline:2px solid #6d28d9':''}"><div class="l">⚖ 소송 회수</div><div class="v" style="color:#6d28d9">${su.length}건</div><div class="s">${eok2(sum(su))} · 손실추정 ${eok2(addLoss(su))}</div></div>`;
-  h+=`<div class="kpi clk" onclick="_woF='hold';render()" style="${_woF==='hold'?'outline:2px solid #b45309':''}"><div class="l">⏸ 보류(추심)</div><div class="v" style="color:#b45309">${ho.length}건</div><div class="s">${eok2(sum(ho))} · 손실추정 ${eok2(addLoss(ho))}</div></div>`;
-  h+=`<div class="kpi clk" onclick="_woF='skip';render()" style="${_woF==='skip'?'outline:2px solid #64748b':''}"><div class="l">제외</div><div class="v">${sk.length}건</div><div class="s">${eok2(sum(sk))} · 충당금커버 ${covPct(sk)}%</div></div>`;
+  h+=`<div class="kpi clk" onclick="_woF='';render()" style="${_woF===''?'outline:2px solid #64748b':''}"><div class="l">후보 전체</div><div class="v">${cands.length}건</div><div class="s">예상손실 ${eok2(addLoss(cands))} · 미검토 ${undone.length}건</div></div>`;
+  h+=`<div class="kpi clk" onclick="_woF=1;render()" style="${_woF===1?'outline:2px solid #b91c1c':''}"><div class="l">🔴 추정손실급</div><div class="v" style="color:#b91c1c">${t1.length}건</div><div class="s">${eok2(sum(t1))} · 최우선 처리</div></div>`;
+  h+=`<div class="kpi clk" onclick="_woF=2;render()" style="${_woF===2?'outline:2px solid #b45309':''}"><div class="l">🟠 회수의문급</div><div class="v" style="color:#b45309">${t2.length}건</div><div class="s">추가손실 ${eok2(addLoss(t2))} · 개별검토</div></div>`;
+  h+=`<div class="kpi clk" onclick="_woF=3;render()" style="${_woF===3?'outline:2px solid #0369a1':''}"><div class="l">🔵 요주의급</div><div class="v" style="color:#0369a1">${t3.length}건</div><div class="s">${eok2(sum(t3))} · 보류 권장</div></div>`;
+  h+=`<div class="kpi clk" onclick="_woF='done';render()" style="${_woF==='done'?'outline:2px solid #047857':''}"><div class="l">✅ 처리 진행</div><div class="v">${done.length}/${cands.length}</div><div class="s">${undone.length}건 미검토 남음</div></div>`;
   h+='</div>';
-  const rows=_woF===''?cands:cands.filter(x=>{const w=woOf(x.r);return w&&w.st===_woF;});
+  const rows=_woF===''?cands:_woF==='done'?done:cands.filter(x=>woTier(x.r).n===_woF);
   const opts=st=>`<option value="">미검토</option>`+Object.keys(WO_ST).map(k=>`<option value="${k}" ${st===k?'selected':''}>${WO_ST[k].l}</option>`).join('');
   h+='<div class="card" style="padding:0;overflow:auto;max-height:66vh"><table class="dt"><thead><tr><th>#</th><th class="l">거래처</th><th class="l">매출일</th><th>미수잔액</th><th>충당금</th><th>추가손실</th><th class="l">근거 (자동수집)</th><th class="l">담당</th><th class="l">상태</th></tr></thead><tbody>';
   h+=rows.map((x,i)=>{const r=x.r,w=woOf(r),tier=woTier(r);return `<tr class="clk" onclick="openRow('${r.rid}')">
