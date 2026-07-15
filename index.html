@@ -419,13 +419,13 @@ function viewHome(){
       <button class="btn" style="margin-left:auto" onclick="openChange(${(RAW.changes||[]).length-1})">내역 보기</button></div></div>`;
   }
   const kpiCards=[
-    {l:'총 채권 발생',v:eok(k.tot),s:E.length+'건 · 2020~2026'},
+    {l:'총 채권 발생',v:eok(k.tot),s:E.length+'건 · 2020~2026',fn:`goListAll()`},
     {l:'수금 완료',v:eok(k.coll),s:'수금률 '+pct(k.collRate)+' (대손포함 '+pct(k.collRateB)+')',c:'var(--ok)'},
     {l:'잔여 미수금',v:eok(k.arSum),s:dl?('전주 대비 '+(dl.ar>=0?'+':'')+eok2(dl.ar)):'',c:'#b45309',go:'list'},
     {l:'실질 관리필요',v:eok2(k.risk),s:'지연+장기체납 잔여위험',c:'var(--bad)',go:'mgmt'},
-    {l:'대손충당금 설정',v:eok2(k.prov),s:'장기체납 대상 기설정'}
+    {l:'대손충당금 설정',v:eok2(k.prov),s:'장기체납 대상 기설정',fn:`goListSpecial('hasProv')`}
   ];
-  h+='<div class="grid kpis">'+kpiCards.map(c=>`<div class="kpi ${c.go?'clk':''}" ${c.go?`onclick="setView('${c.go}')"`:''}><div class="l">${c.l}</div><div class="v" ${c.c?`style="color:${c.c}"`:''}>${c.v}</div><div class="s">${c.s||''}</div></div>`).join('')+'</div>';
+  h+='<div class="grid kpis">'+kpiCards.map(c=>`<div class="kpi ${(c.go||c.fn)?'clk':''}" ${c.fn?`onclick="${c.fn}"`:c.go?`onclick="setView('${c.go}')"`:''}><div class="l">${c.l}</div><div class="v" ${c.c?`style="color:${c.c}"`:''}>${c.v}</div><div class="s">${c.s||''}</div></div>`).join('')+'</div>';
   // 성격별 분류
   h+='<div class="card"><div class="sec">잔여 미수금 성격별 분류 <span class="hint">행 클릭 → 해당 채권 목록</span></div><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">채권 분류</th><th>건수</th><th>미수채권금액</th><th>대손충당금</th><th>실질 위험액</th><th class="lbl">비고</th></tr></thead><tbody>';
   TYPE_ORDER.forEach(t=>{const a=k.ta[t];if(!a)return;
@@ -460,6 +460,8 @@ function goListType(t){_f.type=t;_f.hasAr=(t==='정상채권'||t==='지연채권
 function goListSpecial(s){_f={q:'',type:'',year:'',mgr:'',hasAr:true,sort:'ar',dir:-1,special:s,aging:'',group:false};setView('list');}
 function goListMgr(m){_f={q:'',type:'',year:'',mgr:m,hasAr:true,sort:'ar',dir:-1,special:'',aging:'',group:false};setView('list');}
 function goListAging(i){_f={q:'',type:'',year:'',mgr:'',hasAr:true,sort:'ar',dir:-1,special:'',aging:i,group:false};setView('list');}
+function goListAll(){_f={q:'',type:'',year:'',mgr:'',hasAr:false,sort:'ar',dir:-1,special:'',aging:'',group:false};setView('list');}
+function goListYear(y){_f={q:'',type:'',year:String(y),mgr:'',hasAr:false,sort:'ar',dir:-1,special:'',aging:'',group:false};setView('list');}
 function drawHomeCharts(){
   const w=(RAW.weekly||[]);
   const el1=document.getElementById('ch-trend');
@@ -480,6 +482,7 @@ function listRows(){
   if(_f.special==='noMgr')a=a.filter(isNoMgr);
   if(_f.special==='noPlan')a=a.filter(isNoPlan);
   if(_f.special==='follow')a=a.filter(isFollowDue);
+  if(_f.special==='hasProv')a=a.filter(r=>r.prov>0);
   if(_f.aging!==''&&_f.aging!=null)a=a.filter(r=>r.ar>0&&agingIdx(r)===_f.aging);
   if(_f.q){const q=_f.q.toLowerCase();a=a.filter(r=>((r.name||'')+(r.memo||'')+(r.mgr||'')+(r.payNote||'')).toLowerCase().indexOf(q)>=0);}
   const k=_f.sort,d=_f.dir;
@@ -487,7 +490,7 @@ function listRows(){
   return a;
 }
 function setSort(k){if(_f.sort===k)_f.dir*=-1;else{_f.sort=k;_f.dir=-1;}render();}
-const SPECIAL_LBL={noMgr:'담당 미배정',noPlan:'수금계획 미기재',follow:'팔로우업 도래'};
+const SPECIAL_LBL={noMgr:'담당 미배정',noPlan:'수금계획 미기재',follow:'팔로우업 도래',hasProv:'대손충당금 설정됨'};
 function viewList(){
   const rows=listRows();
   const years=[...new Set(E.map(r=>String(r.year)).filter(Boolean))].sort();
@@ -738,25 +741,25 @@ function viewReport(){
   h+=`<div class="sumline">❷ 잔여 미수금 ${eok(k.arSum)}원 중 ${eok(norm.ar)}원(${pct(k.arSum?norm.ar/k.arSum:0)})은 2025~2026년 당해 매출로 리스사·카드 결제 등 정상 수금 진행 중</div>`;
   h+=`<div class="sumline">❸ 실질 관리 필요 채권 <b>${eok2(k.risk)}원</b> — 지연채권 ${eok2(delay.ar)}원(Q3 전액 수금 목표) + 장기체납 잔여 위험 ${eok2(ltRisk)}원(충당금 ${pct(lt.ar?lt.prov/lt.ar:0)} 기설정)</div>`;
   h+=`<div class="sumline">❹ 장기체납채권 ${eok2(lt.ar)}원에 대해 대손충당금 ${eok2(lt.prov)}원 기설정 완료 — 추가 손실 위험액 ${eok2(ltRisk)}원 수준으로 제한적</div>`;
-  h+='<h4>수금 현황 총괄</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">구분</th><th>금액(원)</th><th>금액(억원)</th><th>비율</th><th class="lbl">비고</th></tr></thead><tbody>';
-  h+=`<tr><td class="lbl">연간 총 채권 발생액 (A)</td><td>${fmt(k.tot)}</td><td>${(k.tot/1e8).toFixed(1)}</td><td>100%</td><td class="lbl">${E.length}건 · 2020~2026년</td></tr>`;
+  h+='<h4>수금 현황 총괄 <span class="hint noprint">행 클릭 → 해당 채권 목록</span></h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">구분</th><th>금액(원)</th><th>금액(억원)</th><th>비율</th><th class="lbl">비고</th></tr></thead><tbody>';
+  h+=`<tr class="hl" onclick="goListAll()"><td class="lbl">연간 총 채권 발생액 (A)</td><td>${fmt(k.tot)}</td><td>${(k.tot/1e8).toFixed(1)}</td><td>100%</td><td class="lbl">${E.length}건 · 2020~2026년</td></tr>`;
   h+=`<tr><td class="lbl">└ 수금 완료 (B)</td><td>${fmt(k.coll)}</td><td>${(k.coll/1e8).toFixed(1)}</td><td>${pct(k.collRate)}</td><td class="lbl">정상 수금 완료분</td></tr>`;
-  h+=`<tr><td class="lbl">└ 대손처리 (C)</td><td>${fmt(k.bad)}</td><td>${(k.bad/1e8).toFixed(1)}</td><td>${pct(k.tot?k.bad/k.tot:0)}</td><td class="lbl">폐업 거래처 등 기처리 완료</td></tr>`;
-  h+=`<tr class="grand"><td class="lbl">잔여 미수금 (A−B−C)</td><td>${fmt(k.arSum)}</td><td>${(k.arSum/1e8).toFixed(1)}</td><td>${pct(k.tot?k.arSum/k.tot:0)}</td><td class="lbl"></td></tr>`;
-  h+=`<tr><td class="lbl">└ 대손충당금 설정액</td><td>${fmt(k.prov)}</td><td>${(k.prov/1e8).toFixed(1)}</td><td>-</td><td class="lbl">장기체납채권 대상 기설정</td></tr>`;
-  h+=`<tr><td class="lbl">└ 실질 회수 위험액</td><td>${fmt(k.arSum-k.prov)}</td><td>${((k.arSum-k.prov)/1e8).toFixed(1)}</td><td>${pct(k.tot?(k.arSum-k.prov)/k.tot:0)}</td><td class="lbl">대손충당 제외 미수금</td></tr>`;
+  h+=`<tr class="hl" onclick="goListType('회수불가채권')"><td class="lbl">└ 대손처리 (C)</td><td>${fmt(k.bad)}</td><td>${(k.bad/1e8).toFixed(1)}</td><td>${pct(k.tot?k.bad/k.tot:0)}</td><td class="lbl">폐업 거래처 등 기처리 완료</td></tr>`;
+  h+=`<tr class="grand hl" onclick="setView('list')"><td class="lbl">잔여 미수금 (A−B−C)</td><td>${fmt(k.arSum)}</td><td>${(k.arSum/1e8).toFixed(1)}</td><td>${pct(k.tot?k.arSum/k.tot:0)}</td><td class="lbl"></td></tr>`;
+  h+=`<tr class="hl" onclick="goListSpecial('hasProv')"><td class="lbl">└ 대손충당금 설정액</td><td>${fmt(k.prov)}</td><td>${(k.prov/1e8).toFixed(1)}</td><td>-</td><td class="lbl">장기체납채권 대상 기설정</td></tr>`;
+  h+=`<tr class="hl" onclick="setView('mgmt')"><td class="lbl">└ 실질 회수 위험액</td><td>${fmt(k.arSum-k.prov)}</td><td>${((k.arSum-k.prov)/1e8).toFixed(1)}</td><td>${pct(k.tot?(k.arSum-k.prov)/k.tot:0)}</td><td class="lbl">대손충당 제외 미수금</td></tr>`;
   h+='</tbody></table></div>';
   h+='</div><div>';
-  h+='<h4>잔여 미수금 성격별 분류</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">채권 분류</th><th>건수</th><th>미수채권금액</th><th>대손충당금</th><th>실질 위험액</th></tr></thead><tbody>';
-  TYPE_ORDER.forEach(t=>{const a=k.ta[t];if(!a)return;h+=`<tr><td class="lbl">${typeChip(t)} ${TYPES[t].d}</td><td>${a.cnt}</td><td>${fmt(a.ar)}</td><td>${fmt(a.prov)}</td><td>${fmt(a.ar-a.prov)}</td></tr>`;});
+  h+='<h4>잔여 미수금 성격별 분류 <span class="hint noprint">행 클릭 → 해당 채권 목록</span></h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">채권 분류</th><th>건수</th><th>미수채권금액</th><th>대손충당금</th><th>실질 위험액</th></tr></thead><tbody>';
+  TYPE_ORDER.forEach(t=>{const a=k.ta[t];if(!a)return;h+=`<tr class="hl" onclick="goListType('${t}')"><td class="lbl">${typeChip(t)} ${TYPES[t].d}</td><td>${a.cnt}</td><td>${fmt(a.ar)}</td><td>${fmt(a.prov)}</td><td>${fmt(a.ar-a.prov)}</td></tr>`;});
   h+=`<tr class="grand"><td class="lbl">합계</td><td>${E.length}</td><td>${fmt(k.arSum)}</td><td>${fmt(k.prov)}</td><td>${fmt(k.arSum-k.prov)}</td></tr></tbody></table></div>`;
-  h+='<h4>매출연도별 현황</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">매출연도</th><th>건수</th><th>원화금액(원)</th><th>미수채권(원)</th><th>미수율</th><th>대손충당금(원)</th></tr></thead><tbody>';
-  ys.forEach(y=>{const a=ya[y];h+=`<tr><td class="lbl">${y}년</td><td>${a.cnt}</td><td>${fmt(a.amt)}</td><td>${fmt(a.ar)}</td><td>${pct(a.amt?a.ar/a.amt:0)}</td><td>${fmt(a.prov)}</td></tr>`;});
+  h+='<h4>매출연도별 현황 <span class="hint noprint">행 클릭 → 해당 채권 목록</span></h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">매출연도</th><th>건수</th><th>원화금액(원)</th><th>미수채권(원)</th><th>미수율</th><th>대손충당금(원)</th></tr></thead><tbody>';
+  ys.forEach(y=>{const a=ya[y];h+=`<tr class="hl" onclick="goListYear('${y}')"><td class="lbl">${y}년</td><td>${a.cnt}</td><td>${fmt(a.amt)}</td><td>${fmt(a.ar)}</td><td>${pct(a.amt?a.ar/a.amt:0)}</td><td>${fmt(a.prov)}</td></tr>`;});
   h+=`<tr class="grand"><td class="lbl">합계</td><td>${E.length}</td><td>${fmt(k.tot)}</td><td>${fmt(k.arSum)}</td><td>${pct(k.tot?k.arSum/k.tot:0)}</td><td>${fmt(k.prov)}</td></tr></tbody></table></div>`;
   h+='</div></div>';
-  h+='<h4>관리 채권 조치 계획</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">구분</th><th>대상</th><th class="lbl">현황 및 원인</th><th class="lbl">조치 내용</th><th class="lbl">목표 기한</th><th class="lbl">담당</th></tr></thead><tbody>';
-  h+=`<tr><td class="lbl">${typeChip('지연채권')} (${eok2(delay.ar)}원)</td><td>${delay.cnt}건</td><td class="lbl" style="white-space:normal">2023~2025년 매출, 할부·팩토링 지연 및 분납 약정 미이행</td><td class="lbl" style="white-space:normal">담당자 직접 접촉 → 분납 약정 재설정 또는 일괄 수금 협의</td><td class="lbl">2026년 9월말 (Q3)</td><td class="lbl">국내영업팀 담당자별</td></tr>`;
-  h+=`<tr><td class="lbl">${typeChip('장기체납채권')} (${eok2(lt.ar)}원)</td><td>${lt.cnt}건</td><td class="lbl" style="white-space:normal">2020~2022년 매출, 대부분 폐업·연락불가 → ${eok2(lt.prov)}원 충당금 기설정</td><td class="lbl" style="white-space:normal">잔여 ${eok2(ltRisk)}원 소송 회수 또는 대손처리 확정 (법무팀 협의)</td><td class="lbl">2026년 12월말</td><td class="lbl">국내영업팀 + 재무팀</td></tr>`;
+  h+='<h4>관리 채권 조치 계획 <span class="hint noprint">행 클릭 → 해당 채권 목록</span></h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">구분</th><th>대상</th><th class="lbl">현황 및 원인</th><th class="lbl">조치 내용</th><th class="lbl">목표 기한</th><th class="lbl">담당</th></tr></thead><tbody>';
+  h+=`<tr class="hl" onclick="goListType('지연채권')"><td class="lbl">${typeChip('지연채권')} (${eok2(delay.ar)}원)</td><td>${delay.cnt}건</td><td class="lbl" style="white-space:normal">2023~2025년 매출, 할부·팩토링 지연 및 분납 약정 미이행</td><td class="lbl" style="white-space:normal">담당자 직접 접촉 → 분납 약정 재설정 또는 일괄 수금 협의</td><td class="lbl">2026년 9월말 (Q3)</td><td class="lbl">국내영업팀 담당자별</td></tr>`;
+  h+=`<tr class="hl" onclick="goListType('장기체납채권')"><td class="lbl">${typeChip('장기체납채권')} (${eok2(lt.ar)}원)</td><td>${lt.cnt}건</td><td class="lbl" style="white-space:normal">2020~2022년 매출, 대부분 폐업·연락불가 → ${eok2(lt.prov)}원 충당금 기설정</td><td class="lbl" style="white-space:normal">잔여 ${eok2(ltRisk)}원 소송 회수 또는 대손처리 확정 (법무팀 협의)</td><td class="lbl">2026년 12월말</td><td class="lbl">국내영업팀 + 재무팀</td></tr>`;
   h+='</tbody></table></div>';
   // 지연채권 수금 진행(주간)
   const w=(RAW.weekly||[]);
