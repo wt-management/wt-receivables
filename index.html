@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>미수금 관리 · 국내</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%23b45309'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>₩</text></svg>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--line:#e8ebf0;--line2:#f1f3f5;--ink:#0f172a;--body:#475569;--muted:#94a3b8;--brand:#b45309;--ok:#15803d;--bad:#b91c1c;--sh:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.05)}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:light}
+body{font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;background:var(--bg);color:var(--body);font-size:14px;-webkit-font-smoothing:antialiased;letter-spacing:-.1px;font-variant-numeric:tabular-nums}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+.hidden{display:none!important}
+#load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#f6f7f9;color:#64748b;font-size:14px;z-index:50}
+#app{display:none}
+/* 상단 헤더(일보 스타일) */
+.hdr{position:sticky;top:0;z-index:40;background:#0f172a;color:#fff}
+.hdr-in{max-width:1560px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .lg{width:37px;height:37px;border-radius:10px;background:linear-gradient(135deg,#d97706,#b45309);display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 5px 14px rgba(180,83,9,.35)}
+.brand b{color:#fff;font-size:14.5px;font-weight:800;display:block;line-height:1.1}.brand small{display:block;color:#64748b;font-size:10.5px;margin-top:1px}
+.hdr-r{display:flex;align-items:center;gap:9px;margin-left:auto}
+.hbtn{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:8px 12px;color:#e2e8f0;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px}
+.hbtn:hover{background:rgba(255,255,255,.16)}
+.acctbtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:4px 11px 4px 4px;display:flex;align-items:center;gap:8px;color:#fff}
+.acctbtn:hover{background:rgba(255,255,255,.12)}
+.acctbtn .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.acctbtn .who{text-align:left;line-height:1.2}.acctbtn .nm{font-size:12px;font-weight:700;color:#f1f5f9;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.acctbtn .em{font-size:10px;color:#94a3b8;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sw-wrap{position:relative}
+.dd{display:none;position:absolute;top:122%;right:0;background:#1e293b;border:1px solid #334155;border-radius:12px;box-shadow:0 16px 42px rgba(0,0,0,.5);z-index:50;padding:6px;min-width:220px}
+.dd.open{display:block}
+.dd>button{width:100%;text-align:left;background:transparent;border:0;border-radius:8px;padding:9px 11px;font-size:13px;color:#cbd5e1;font-weight:600;display:flex;align-items:center;gap:8px;cursor:pointer}
+.dd>button:hover{background:rgba(255,255,255,.08);color:#fff}
+.sw-item{border-radius:8px;padding:9px 10px;display:flex;align-items:center;gap:9px;color:#94a3b8;font-size:12.5px;cursor:pointer;font-weight:600}
+.sw-item:hover{background:rgba(255,255,255,.1);color:#fff}
+.sw-badge{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:19px;color:#fff;border-radius:6px;font-size:10px;font-weight:700;padding:0 5px;flex-shrink:0}
+.nav{max-width:1560px;margin:0 auto;padding:0 16px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;border-top:1px solid rgba(255,255,255,.08)}
+.nav::-webkit-scrollbar{display:none}
+.nav a{display:flex;align-items:center;gap:7px;padding:11px 14px 12px;font-size:13.5px;font-weight:600;color:#94a3b8;border-bottom:2.5px solid transparent;white-space:nowrap;cursor:pointer;text-decoration:none}
+.nav a .ico{font-size:15px}
+.nav a:hover{color:#fff}
+.nav a.active{color:#fff;border-bottom-color:#f59e0b}
+/* 메인 */
+#main{max-width:1560px;margin:0 auto;min-height:60vh}
+.pagetitle{padding:22px 24px 2px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pagetitle h2{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.3px}
+.pagetitle .desc{color:var(--muted);font-size:12.5px;margin-top:4px}
+.wrap{padding:22px 30px 60px}
+.sec{font-size:15px;font-weight:700;color:var(--ink);margin:6px 0 14px;display:flex;align-items:center;gap:8px}
+.hint{font-size:11.5px;color:var(--muted);font-weight:500}
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:20px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--sh)}
+.kpi.clk{cursor:pointer}.kpi.clk:hover{border-color:#cbd5e1}
+.kpi .l{font-size:11.5px;color:var(--muted);font-weight:500}
+.kpi .v{font-size:22px;font-weight:800;color:var(--ink);margin-top:6px;line-height:1}
+.kpi .s{font-size:11px;margin-top:6px;font-weight:600;color:var(--muted)}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--sh);margin-bottom:18px}
+.up{color:var(--ok)}.dn{color:var(--bad)}.mut{color:var(--muted)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--body);box-shadow:var(--sh)}
+.btn:hover{border-color:#cbd5e1}
+.btn.pri{background:#0f172a;color:#fff;border-color:#0f172a}
+.btn.warn{background:#b45309;color:#fff;border-color:#b45309}
+.sel,.inp{border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:12.5px;background:#fff;color:var(--body)}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap}
+.bar-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+/* 표 */
+.tbl-scroll{overflow-x:auto}
+table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
+.dt th,.dt td{border-bottom:1px solid var(--line2);padding:8px 10px;text-align:right;white-space:nowrap}
+.dt th{color:var(--muted);font-weight:600;font-size:11px;background:#fafbfc;position:sticky;top:0}
+.dt th.sortable{cursor:pointer}.dt th.sortable:hover{color:var(--ink)}
+.dt td.l,.dt th.l{text-align:left}
+.dt td.l b{color:var(--ink);font-weight:600}
+.dt tr.clk{cursor:pointer}.dt tr.clk:hover td{background:#fdf8f1}
+.dt .memo{max-width:260px;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+table.rt{width:100%;border-collapse:collapse;font-size:12.5px;min-width:700px}
+.rt th,.rt td{border:1px solid var(--line);padding:7px 10px;text-align:right;white-space:nowrap}
+.rt thead th{background:#eef2f6;color:#475569;font-weight:700;font-size:11.5px;text-align:center}
+.rt td.lbl,.rt th.lbl{text-align:left}
+.rt tr.grand td{background:#0f172a;color:#fff;font-weight:800}
+.rt tr.hl:hover td{background:#fdf8f1;cursor:pointer}
+/* 모달 */
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;z-index:70;padding:24px}
+.modal.open{display:flex}
+.mbox{background:#fff;border-radius:18px;width:min(760px,100%);max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+.mhd{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:2}
+.mhd h3{font-size:17px;color:var(--ink);font-weight:800}
+.mhd .x{border:0;background:#f1f3f5;width:30px;height:30px;border-radius:8px;color:#64748b;font-size:16px;flex-shrink:0}
+.mbody{padding:18px 22px 24px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 16px;margin-bottom:14px}
+.fld label{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-bottom:3px}
+.fld .fv{font-size:13px;color:var(--ink);font-weight:600;word-break:break-all}
+.fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px}
+.fld textarea{resize:vertical;min-height:56px}
+.editable-note{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:14px}
+/* 로그인 */
+#login{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f172a,#292018);z-index:60}
+.lc{background:#fff;border-radius:18px;padding:40px 34px;width:350px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+.lc h1{font-size:18px;text-align:center;color:#0f172a}.lc .sub{text-align:center;color:#94a3b8;font-size:13px;margin:4px 0 22px}
+.lc input{width:100%;padding:12px 14px;border:1px solid #e8ebf0;border-radius:10px;margin-bottom:11px}
+.lc button{width:100%;padding:12px;border:0;border-radius:10px;background:#b45309;color:#fff;font-weight:700}
+#login-err{color:#b91c1c;font-size:12.5px;text-align:center;margin-top:10px;display:none}
+/* 토스트 */
+#toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:99;display:none;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+/* 임원 보고(인쇄) */
+.rpt{max-width:900px}
+.rpt h1{font-size:20px;color:var(--ink);text-align:center;margin-bottom:2px}
+.rpt .sub{text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:22px}
+.rpt h4{font-size:14.5px;color:var(--ink);margin:22px 0 10px;padding-left:9px;border-left:4px solid var(--brand)}
+.rpt .sumline{font-size:13px;color:var(--ink);padding:6px 0;line-height:1.55}
+.rpt .concl{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink);font-weight:600;line-height:1.6;margin-top:18px}
+@media print{
+  .hdr,.pagetitle .actions,#pdf-fab,#wt-fb-btn,#wt-fb-panel,.noprint{display:none!important}
+  body{background:#fff}
+  .wrap{padding:0}
+  .card{border:0;box-shadow:none;padding:8px 0}
+  #main{max-width:100%}
+}
+#pdf-fab{position:fixed;right:18px;bottom:18px;z-index:9990;background:#0f172a;color:#fff;border:0;border-radius:24px;padding:10px 16px;font-size:12.5px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.3);display:flex;align-items:center;gap:6px}
+canvas.chart{max-height:300px}
+@media(max-width:820px){
+  .hdr-in{padding:10px 14px;gap:10px}
+  .brand small{display:none}
+  .acctbtn .who{display:none}
+  .nav{padding:0 8px}.nav a{padding:10px 11px;font-size:12.5px}
+  .pagetitle{padding:16px 14px 2px}.wrap{padding:14px 14px 60px}
+  body{overflow-x:hidden}
+}
+</style>
+<script>/* WT_ERRLOG_V1 — 공통 오류수집+요청함 (자동주입 스니펫, 개별 수정 금지) */
+(function(){
+var U='https://mhfacbsittfdkknwybhc.supabase.co/rest/v1/';
+var K='sb_publishable_aPMOOWAlyJlMcP1ZM_gpPA_jlrcvCRd';
+var SITE=(location.pathname.split('/')[1]||'root');
+var PAGE=(location.pathname.split('/').slice(2).join('/')||'index.html');
+function wtPost(t,b){try{fetch(U+t,{method:'POST',headers:{'apikey':K,'Authorization':'Bearer '+K,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(b)});}catch(e){}}
+function wtEmail(){try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('sb-')===0&&k.indexOf('auth-token')>-1){var v=JSON.parse(localStorage.getItem(k)||'{}');return (v.user&&v.user.email)||(v.currentSession&&v.currentSession.user&&v.currentSession.user.email)||'';}}}catch(e){}return '';}
+var wtSeen={},wtN=0;
+window.addEventListener('error',function(e){if(!e||!e.message)return;var key=e.message+'|'+(e.filename||'')+'|'+e.lineno;if(wtSeen[key]||wtN>=10)return;wtSeen[key]=1;wtN++;wtPost('site_errors',{site:SITE,page:PAGE,href:location.href.slice(0,500),message:String(e.message).slice(0,500),source:String(e.filename||'').slice(0,300),line:e.lineno||null,col:e.colno||null,stack:(e.error&&e.error.stack)?String(e.error.stack).slice(0,1500):null,ua:navigator.userAgent.slice(0,300),user_email:wtEmail()||null});},true);
+window.addEventListener('unhandledrejection',function(e){var r=(e&&e.reason)||{};var m=('unhandledrejection: '+(r.message||String(r))).slice(0,500);if(wtSeen[m]||wtN>=10)return;wtSeen[m]=1;wtN++;wtPost('site_errors',{site:SITE,page:PAGE,href:location.href.slice(0,500),message:m,stack:r.stack?String(r.stack).slice(0,1500):null,ua:navigator.userAgent.slice(0,300),user_email:wtEmail()||null});});
+function wtFb(){
+if(document.getElementById('wt-fb-btn'))return;
+var b=document.createElement('div');b.id='wt-fb-btn';b.textContent='🙋 요청·신고';
+b.style.cssText='position:fixed;right:18px;bottom:64px;z-index:99990;background:#334155;color:#e2e8f0;padding:7px 13px;border-radius:20px;font-size:12px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);font-family:inherit;user-select:none;opacity:.85';
+b.onmouseover=function(){b.style.opacity='1';};b.onmouseout=function(){b.style.opacity='.85';};
+var p=document.createElement('div');p.id='wt-fb-panel';
+p.style.cssText='display:none;position:fixed;right:18px;bottom:108px;z-index:99991;width:min(320px,90vw);background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;box-shadow:0 12px 32px rgba(0,0,0,.5);font-family:inherit';
+p.innerHTML='<div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:8px">요청 · 불편신고</div><textarea id="wt-fb-msg" placeholder="불편한 점이나 요청사항을 적어주세요" style="width:100%;height:88px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:12px;padding:8px;resize:none;box-sizing:border-box"></textarea><div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end"><button id="wt-fb-cancel" style="background:none;border:1px solid #475569;color:#94a3b8;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer">닫기</button><button id="wt-fb-send" style="background:#0d9488;border:none;color:#fff;padding:5px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600">전송</button></div>';
+document.body.appendChild(b);document.body.appendChild(p);
+b.onclick=function(){p.style.display=p.style.display==='none'?'block':'none';if(p.style.display==='block'){var t=document.getElementById('wt-fb-msg');if(t)t.focus();}};
+document.getElementById('wt-fb-cancel').onclick=function(){p.style.display='none';};
+document.getElementById('wt-fb-send').onclick=function(){var t=document.getElementById('wt-fb-msg');var m=(t&&t.value||'').trim();if(!m)return;wtPost('site_feedback',{site:SITE,page:PAGE,message:m.slice(0,2000),reporter:wtEmail()||null});p.innerHTML='<div style="color:#5eead4;font-size:13px;text-align:center;padding:14px 4px">접수되었습니다! 감사합니다 🙏</div>';setTimeout(function(){p.style.display='none';p.remove();b.remove();wtFb();},1600);};
+}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',wtFb);}else{wtFb();}
+})();</script>
+</head>
+<body>
+<div id="load"><i class="bi bi-arrow-repeat" style="margin-right:8px"></i>불러오는 중...</div>
+
+<div id="login"><div class="lc"><h1>💰 국내 미수금 관리</h1><div class="sub">국내영업 채권 현황</div>
+  <input id="li" type="email" placeholder="이메일" onkeydown="if(event.key==='Enter')doLogin()"><input id="lp" type="password" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
+  <button onclick="doLogin()">로그인</button><div id="login-err">이메일 또는 비밀번호가 올바르지 않습니다.</div></div></div>
+
+<div id="app">
+  <header class="hdr">
+    <div class="hdr-in">
+      <div class="brand"><div class="lg">💰</div><div><b>국내 미수금 관리</b><small id="hdr-asof">국내영업 채권 현황</small></div></div>
+      <div class="hdr-r">
+        <div class="sw-wrap"><button class="hbtn" onclick="ddToggle('swdd')"><i class="bi bi-grid-3x3-gap-fill"></i> 사이트 이동</button>
+          <div class="dd" id="swdd"></div></div>
+        <div class="sw-wrap"><button class="acctbtn" onclick="ddToggle('acctdd')"><span class="av" id="uav">-</span><span class="who"><span class="nm" id="unm">-</span><span class="em" id="uem">-</span></span></button>
+          <div class="dd" id="acctdd"><button onclick="changePw()"><i class="bi bi-key"></i> 비밀번호 변경</button><button onclick="doLogout()"><i class="bi bi-box-arrow-right"></i> 로그아웃</button></div></div>
+      </div>
+    </div>
+    <nav class="nav" id="topnav">
+      <a data-v="home"><span class="ico">📊</span><span class="lbl">대시보드</span></a>
+      <a data-v="list"><span class="ico">📋</span><span class="lbl">채권 목록</span></a>
+      <a data-v="mgmt"><span class="ico">🎯</span><span class="lbl">관리대상</span></a>
+      <a data-v="trend"><span class="ico">📈</span><span class="lbl">주간 추이</span></a>
+      <a data-v="report"><span class="ico">🖨️</span><span class="lbl">임원 보고</span></a>
+      <a data-v="upload"><span class="ico">⬆️</span><span class="lbl">데이터 업로드</span></a>
+    </nav>
+  </header>
+  <main id="main">
+    <div class="pagetitle"><div><h2 id="pt-h">대시보드</h2><div class="desc" id="pt-d"></div></div><div class="actions" id="pt-a"></div></div>
+    <div class="wrap" id="view"></div>
+  </main>
+</div>
+
+<div class="modal" id="modal"><div class="mbox" id="mbox"></div></div>
+<div id="toast"></div>
+<button id="pdf-fab" class="noprint" onclick="window.print()"><i class="bi bi-filetype-pdf"></i> PDF 저장</button>
+
+<script>
+const SUPA_URL='https://mhfacbsittfdkknwybhc.supabase.co';
+const SUPA_KEY='sb_publishable_aPMOOWAlyJlMcP1ZM_gpPA_jlrcvCRd';
+const CENTRAL='https://wt-management.github.io/wontech/';
+const _sb=supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+let ME='', RAW=null, EDITS={}, E=[], M=[], curView='home';
+let _charts=[];
+
+// ── 유틸 ──
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmt(v){return Math.round(v||0).toLocaleString();}
+function eok(v){return ((v||0)/1e8).toFixed(1)+'억';}
+function eok2(v){return ((v||0)/1e8).toFixed(2)+'억';}
+function pct(v,d){return (100*(v||0)).toFixed(d==null?1:d)+'%';}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2400);}
+function rid(s){let h=5381;for(let i=0;i<s.length;i++){h=((h<<5)+h+s.charCodeAt(i))>>>0;}return h.toString(16);}
+
+// 채권유형 메타(위험도 4단계 — 칩은 항상 라벨 동반, 색 단독 식별 없음)
+const TYPES={'정상채권':{c:'#2563eb',bg:'#dbeafe',d:'정상 수금 예정'},'지연채권':{c:'#b45309',bg:'#fef3c7',d:'수금 조치 필요'},'장기체납채권':{c:'#b91c1c',bg:'#fee2e2',d:'기 충당 완료'},'회수불가채권':{c:'#6d28d9',bg:'#ede9fe',d:'대손처리 완료'},'미분류':{c:'#64748b',bg:'#f1f5f9',d:'-'}};
+const TYPE_ORDER=['정상채권','지연채권','장기체납채권','회수불가채권','미분류'];
+function typeChip(t){const m=TYPES[t]||TYPES['미분류'];return `<span class="chip" style="background:${m.bg};color:${m.c}">${esc(t||'미분류')}</span>`;}
+const CLS_META={'집중관리':{c:'#b45309',bg:'#fef3c7'},'검토필요':{c:'#b91c1c',bg:'#fee2e2'},'관리제외':{c:'#64748b',bg:'#f1f5f9'}};
+function clsChip(c){const m=CLS_META[c]||{c:'#64748b',bg:'#f1f5f9'};return `<span class="chip" style="background:${m.bg};color:${m.c}">${esc(c||'-')}</span>`;}
+
+// ── 부트/로그인 ──
+async function arAllowed(user){const MASTER='pmw0406@gmail.com';if((user.email||'')===MASTER)return true;
+  // 미수금(민감 재무데이터) = access 'ar' 권한자만. admin 자동통과 없음(마스터+지정자 전용).
+  try{const{data:p}=await _sb.from('crm_profiles').select('access').eq('id',user.id).maybeSingle();
+    if(!p)return false;
+    return (p.access||'').split(',').map(s=>s.trim()).indexOf('ar')>=0;
+  }catch(e){return false;}}
+async function boot(){let{data}=await _sb.auth.getSession();
+  if(!(data&&data.session)){await new Promise(r=>setTimeout(r,500));({data}=await _sb.auth.getSession());}
+  if(data&&data.session)await enter(data.session.user);
+  else{document.getElementById('load').style.display='none';document.getElementById('login').style.display='flex';}}
+async function doLogin(){const e=(document.getElementById('li').value||'').trim(),p=(document.getElementById('lp').value||'').trim();const er=document.getElementById('login-err');er.style.display='none';const{data,error}=await _sb.auth.signInWithPassword({email:e,password:p});if(error){er.style.display='block';return;}document.getElementById('login').style.display='none';await enter(data.user);}
+async function doLogout(){await _sb.auth.signOut();Object.keys(localStorage).filter(k=>k.startsWith('sb-')).forEach(k=>localStorage.removeItem(k));location.href=CENTRAL;}
+async function changePw(){const np=prompt('새 비밀번호 (6자 이상)');if(np===null)return;if((np||'').length<6){alert('6자 이상이어야 합니다.');return;}if(prompt('확인을 위해 다시 입력하세요')!==np){alert('일치하지 않습니다.');return;}const r=await _sb.auth.updateUser({password:np});if(r.error){alert('변경 실패: '+r.error.message);return;}alert('비밀번호가 변경되었습니다.');}
+/* 자동 로그아웃: 30분 무동작(마스터 제외) */
+(function(){var IDLE_MS=30*60*1000,_it;
+  function _logout(){try{_sb.auth.signOut().then(function(){location.href=CENTRAL;});}catch(e){location.href=CENTRAL;}}
+  function _fire(){try{_sb.auth.getSession().then(function(r){var s=r&&r.data&&r.data.session;if(s&&s.user&&s.user.email==='pmw0406@gmail.com'){_arm();return;}if(s)_logout();else _arm();}).catch(function(){_logout();});}catch(e){_logout();}}
+  function _arm(){clearTimeout(_it);_it=setTimeout(_fire,IDLE_MS);}
+  ['mousemove','mousedown','keydown','touchstart','scroll','click','wheel'].forEach(function(ev){document.addEventListener(ev,_arm,{passive:true,capture:true});});
+  _arm();})();
+function ddToggle(id){const el=document.getElementById(id);if(!el)return;const wasOpen=el.classList.contains('open');document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));if(!wasOpen)el.classList.add('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.sw-wrap'))document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));});
+
+/* ===== 권한 기반 사이트 이동 (site_registry 공통) — WT_SWITCHER ===== */
+var _WT_MASTER='pmw0406@gmail.com';
+var _WT_OWN=["ar"];
+var _WT_WONTECH='https://wt-management.github.io/wontech/';
+var _wtReg=null, _wtItems=[];
+async function _wtLoadReg(){ if(_wtReg) return _wtReg; try{ var r=await _sb.from('site_registry').select('*').order('sort_order'); _wtReg=r.data||[]; }catch(e){ _wtReg=[]; } return _wtReg; }
+function _wtVis(s,ac,ad){ if(ac.indexOf(s.key)>=0) return true; if(s.admin_bypass&&ad) return true; if(s.extra_visible_rule){ try{ return !!(new Function('access','isAdmin','return ('+s.extra_visible_rule+')'))(ac,ad); }catch(e){ return false; } } return false; }
+async function _wtGo(i){
+  var s=_wtItems[i]; if(!s) return;
+  var u=(s.key==='korea'||s.url==='LOCAL')?_WT_WONTECH:s.url;
+  var extra=s.key==='korea'?'&app=korea':(s.key==='admin'?'&app=admin':'');
+  var sess=null; try{ sess=(await _sb.auth.getSession()).data.session; }catch(e){}
+  if(sess && u.indexOf('#')<0) u+='#at='+encodeURIComponent(sess.access_token)+'&rt='+encodeURIComponent(sess.refresh_token);
+  u+=extra; location.href=u;
+}
+async function _wtRenderSwitcher(){
+  await _wtLoadReg();
+  var ac=[], ad=false;
+  try{ var ses=(await _sb.auth.getSession()).data.session;
+    if(ses&&ses.user){ if(ses.user.email===_WT_MASTER) ad=true;
+      var p=await _sb.from('crm_profiles').select('access,role').eq('id',ses.user.id).maybeSingle();
+      if(p&&p.data){ ac=(p.data.access||'').split(',').map(function(x){return x.trim();}).filter(Boolean); if(p.data.role==='admin') ad=true; }
+    }
+  }catch(e){}
+  var seen={};
+  _wtItems=_wtReg.filter(function(s){
+    if(_WT_OWN.indexOf(s.key)>=0) return false;
+    if(!_wtVis(s,ac,ad)) return false;
+    var dest=(s.key==='korea'||s.url==='LOCAL')?'wontech':s.url; if(seen[dest]) return false; seen[dest]=1;
+    return true;
+  }).sort(function(a,b){ return a.key==='total'?-1:(b.key==='total'?1:(a.sort_order-b.sort_order)); });
+  if(ad){ _wtItems.push({key:'admin',badge:'ADM',grad_from:'#6b7280',title:'관리자 페이지',url:_WT_WONTECH}); }
+  var box=document.querySelector("#swdd"); if(!box) return;
+  box.innerHTML=_wtItems.map(function(s,i){
+    return '<div class="sw-item" onclick="_wtGo('+i+')"><span class="sw-badge" style="background:'+(s.grad_from||'#64748b')+'">'+esc(s.badge)+'</span><span style="flex:1">'+esc(s.title)+'</span><i class="bi bi-arrow-right" style="font-size:11px;opacity:.5"></i></div>';
+  }).join('');
+}
+
+async function enter(user){
+  ME=user.email||'';document.getElementById('uem').textContent=ME;document.getElementById('unm').textContent=(ME.split('@')[0]||'사용자');document.getElementById('uav').textContent=(ME[0]||'W').toUpperCase();
+  if(!(await arAllowed(user))){location.href=CENTRAL;return;}
+  await loadData();
+  afterLoad();
+}
+async function loadData(){
+  const[a,b]=await Promise.all([
+    _sb.from('cons_cache').select('data').eq('key','ar_kr').maybeSingle(),
+    _sb.from('cons_cache').select('data').eq('key','ar_kr_edits').maybeSingle()
+  ]);
+  RAW=(a.data&&a.data.data)||null;
+  EDITS=(b.data&&b.data.data)||{};
+  applyEdits();
+}
+function applyEdits(){
+  if(!RAW){E=[];M=[];return;}
+  E=(RAW.rows||[]).map(r=>{const e=EDITS[r.rid];if(!e)return r;
+    const c=Object.assign({},r);['plan','payNote','opinion','type'].forEach(k=>{if(e[k]!==undefined&&e[k]!=='')c[k]=e[k];});c._edited=true;return c;});
+  M=((RAW.mgmt&&RAW.mgmt.items)||[]).map(i=>{const e=EDITS[i.rid];if(!e)return i;
+    const c=Object.assign({},i);if(e.cls!==undefined&&e.cls!=='')c.cls=e.cls;if(e.mgmtOp!==undefined&&e.mgmtOp!=='')c.opinion=e.mgmtOp;if(e.cls||e.mgmtOp)c._edited=true;return c;});
+  const h=document.getElementById('hdr-asof');if(h&&RAW.asOf)h.textContent='기준 '+RAW.asOf+' · '+(RAW.rows||[]).length+'건';
+}
+const VIEWS=['home','list','mgmt','trend','report','upload'];
+function afterLoad(){
+  document.getElementById('load').style.display='none';document.getElementById('app').style.display='block';
+  const raw=(location.hash||'').replace(/^#/,'');const v=VIEWS.indexOf(raw)>=0?raw:'home';
+  if(raw!==v){try{history.replaceState(null,'','#'+v);}catch(e){}}
+  applyView(v);try{_wtRenderSwitcher();}catch(e){}
+  document.querySelectorAll('#topnav a').forEach(a=>{a.onclick=()=>setView(a.dataset.v);});
+}
+function setView(v){if(('#'+v)===location.hash){applyView(v);}else{location.hash='#'+v;}}
+window.addEventListener('hashchange',()=>{const v=(location.hash||'').replace(/^#/,'');if(VIEWS.indexOf(v)>=0)applyView(v);});
+function applyView(v){curView=v;closeModal();
+  document.querySelectorAll('#topnav a').forEach(a=>a.classList.toggle('active',a.dataset.v===v));
+  render();}
+
+// ── 집계 ──
+function typeAgg(rows){const m={};rows.forEach(r=>{const t=r.type||'미분류';m[t]=m[t]||{cnt:0,ar:0,prov:0,rows:[]};m[t].cnt++;m[t].ar+=r.ar;m[t].prov+=r.prov;m[t].rows.push(r);});return m;}
+function yearAgg(rows){const m={};rows.forEach(r=>{const y=r.year||'?';m[y]=m[y]||{cnt:0,amt:0,ar:0,prov:0};m[y].cnt++;m[y].amt+=r.amt;m[y].ar+=r.ar;m[y].prov+=r.prov;});return m;}
+function kpis(){
+  const tot=E.reduce((s,r)=>s+r.amt,0),coll=E.reduce((s,r)=>s+r.coll,0),bad=E.reduce((s,r)=>s+r.bad,0);
+  const arSum=E.reduce((s,r)=>s+r.ar,0),prov=E.reduce((s,r)=>s+r.prov,0);
+  const ta=typeAgg(E);
+  const delay=(ta['지연채권']||{ar:0,prov:0});const lt=(ta['장기체납채권']||{ar:0,prov:0});
+  const risk=delay.ar-delay.prov+(lt.ar-lt.prov); // 실질 관리필요 = 지연 잔여위험 + 장기체납 잔여위험
+  return{tot,coll,bad,arSum,prov,ta,risk,collRate:tot?coll/tot:0,collRateB:tot?(coll+bad)/tot:0};
+}
+function weeklyDelta(){const w=(RAW&&RAW.weekly)||[];if(w.length<2)return null;const a=w[w.length-1],b=w[w.length-2];return{d:a.d,pd:b.d,ar:a.ar-b.ar,cnt:a.cnt-b.cnt,coll:a.coll-b.coll};}
+
+// ── 렌더 ──
+function destroyCharts(){_charts.forEach(c=>{try{c.destroy();}catch(e){}});_charts=[];}
+function render(){
+  destroyCharts();
+  const v=document.getElementById('view');
+  const T={home:['대시보드','국내 미수채권 현황 한눈에'],list:['채권 목록','전체 채권 상세 · 행 클릭 → 상세/편집'],mgmt:['관리대상','잔액 보유 채권 분류 관리 (집중관리·검토필요·관리제외)'],trend:['주간 추이','주간 스냅샷 기반 미수잔액 흐름'],report:['임원 보고','보고 형식 · 우측 하단 PDF 저장 버튼으로 출력'],upload:['데이터 업로드','재무팀 주간 엑셀 → 자동 파싱·갱신']};
+  document.getElementById('pt-h').textContent=T[curView][0];
+  document.getElementById('pt-d').textContent=T[curView][1]+(RAW&&RAW.asOf?' · 기준일 '+RAW.asOf:'');
+  document.getElementById('pt-a').innerHTML='';
+  if(!RAW){v.innerHTML='<div class="card">데이터가 없습니다 (cons_cache <b>ar_kr</b>). 데이터 업로드 탭에서 엑셀을 올려주세요.</div>';return;}
+  v.innerHTML=curView==='home'?viewHome():curView==='list'?viewList():curView==='mgmt'?viewMgmt():curView==='trend'?viewTrend():curView==='report'?viewReport():viewUpload();
+  if(curView==='home')drawHomeCharts();
+  if(curView==='trend')drawTrendChart();
+}
+
+// ═══ 대시보드 ═══
+function viewHome(){
+  const k=kpis(),dl=weeklyDelta();
+  const kpiCards=[
+    {l:'총 채권 발생',v:eok(k.tot),s:E.length+'건 · 2020~2026'},
+    {l:'수금 완료',v:eok(k.coll),s:'수금률 '+pct(k.collRate)+' (대손포함 '+pct(k.collRateB)+')',c:'var(--ok)'},
+    {l:'잔여 미수금',v:eok(k.arSum),s:dl?('전주 대비 '+(dl.ar>=0?'+':'')+eok2(dl.ar)):'',c:'#b45309',go:'list'},
+    {l:'실질 관리필요',v:eok2(k.risk),s:'지연+장기체납 잔여위험',c:'var(--bad)',go:'mgmt'},
+    {l:'대손충당금 설정',v:eok2(k.prov),s:'장기체납 대상 기설정'}
+  ];
+  let h='<div class="grid kpis">'+kpiCards.map(c=>`<div class="kpi ${c.go?'clk':''}" ${c.go?`onclick="setView('${c.go}')"`:''}><div class="l">${c.l}</div><div class="v" ${c.c?`style="color:${c.c}"`:''}>${c.v}</div><div class="s">${c.s||''}</div></div>`).join('')+'</div>';
+  // 성격별 분류
+  h+='<div class="card"><div class="sec">잔여 미수금 성격별 분류 <span class="hint">행 클릭 → 해당 채권 목록</span></div><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">채권 분류</th><th>건수</th><th>미수채권금액</th><th>대손충당금</th><th>실질 위험액</th><th class="lbl">비고</th></tr></thead><tbody>';
+  TYPE_ORDER.forEach(t=>{const a=k.ta[t];if(!a)return;
+    h+=`<tr class="hl" onclick="goListType('${t}')"><td class="lbl">${typeChip(t)} <span class="hint">${TYPES[t].d}</span></td><td>${a.cnt}</td><td><b>${fmt(a.ar)}</b></td><td>${fmt(a.prov)}</td><td>${fmt(a.ar-a.prov)}</td><td class="lbl hint">${t==='정상채권'?'당해 매출 — 리스사·카드 수금 진행':t==='지연채권'?'Q3 전액 수금 목표 — 담당자 접촉 중':t==='장기체납채권'?'충당금 기설정 — 잔여분만 위험':t==='회수불가채권'?'대손처리 완료':''}</td></tr>`;});
+  h+=`<tr class="grand"><td class="lbl">합계</td><td>${E.length}</td><td>${fmt(k.arSum)}</td><td>${fmt(k.prov)}</td><td>${fmt(k.arSum-k.prov)}</td><td></td></tr></tbody></table></div></div>`;
+  // 추이 + 연도별 (2컬럼)
+  h+='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr))">';
+  h+='<div class="card"><div class="sec">주간 미수잔액 추이 <span class="hint">억원 · 클릭 → 주간 추이</span></div><canvas id="ch-trend" class="chart" onclick="setView(\'trend\')"></canvas></div>';
+  h+='<div class="card"><div class="sec">매출연도별 미수율 <span class="hint">미수채권 ÷ 원화금액</span></div><canvas id="ch-year" class="chart"></canvas></div>';
+  h+='</div>';
+  // 관리대상 Top10
+  const top=M.slice().sort((a,b)=>b.ar-a.ar).slice(0,10);
+  h+='<div class="card"><div class="sec">우선 관리대상 Top 10 <span class="hint">미수금액 기준 · 행 클릭 → 상세</span></div><div class="tbl-scroll"><table class="dt"><thead><tr><th>#</th><th class="l">거래처명</th><th>미수금액(원)</th><th class="l">분류</th><th class="l">담당자</th><th class="l">경과</th></tr></thead><tbody>';
+  top.forEach((i,n)=>{h+=`<tr class="clk" onclick="openRow('${i.rid}')"><td>${n+1}</td><td class="l"><b>${esc(i.name)}</b></td><td><b>${fmt(i.ar)}</b></td><td class="l">${clsChip(i.cls)}</td><td class="l">${esc(i.mgr)}</td><td class="l hint">${esc(i.elapsed)}</td></tr>`;});
+  h+='</tbody></table></div></div>';
+  return h;
+}
+function goListType(t){_f.type=t;_f.hasAr=(t==='정상채권'||t==='지연채권'||t==='장기체납채권');setView('list');}
+function drawHomeCharts(){
+  const w=(RAW.weekly||[]);
+  const el1=document.getElementById('ch-trend');
+  if(el1&&w.length){_charts.push(new Chart(el1,{type:'line',data:{labels:w.map(x=>x.d.slice(5)),datasets:[{data:w.map(x=>+(x.ar/1e8).toFixed(2)),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:5,tension:.25,fill:true}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'미수잔액 '+c.parsed.y+'억'}}},scales:{y:{grid:{color:'#f1f3f5'},ticks:{callback:v=>v+'억'}},x:{grid:{display:false},ticks:{maxTicksLimit:10}}},maintainAspectRatio:false}}));}
+  const ya=yearAgg(E);const ys=Object.keys(ya).sort();
+  const el2=document.getElementById('ch-year');
+  if(el2){_charts.push(new Chart(el2,{type:'bar',data:{labels:ys,datasets:[{data:ys.map(y=>+(100*ya[y].ar/(ya[y].amt||1)).toFixed(1)),backgroundColor:'#2563eb',borderRadius:4,maxBarThickness:44}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const y=ys[c.dataIndex],a=ya[y];return['미수율 '+c.parsed.y+'%','매출 '+eok(a.amt)+' · 미수 '+eok(a.ar)+' · '+a.cnt+'건'];}}}},scales:{y:{grid:{color:'#f1f3f5'},ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}},maintainAspectRatio:false}}));}
+}
+
+// ═══ 채권 목록 ═══
+let _f={q:'',type:'',year:'',mgr:'',hasAr:true,sort:'ar',dir:-1};
+function listRows(){
+  let a=E.slice();
+  if(_f.hasAr)a=a.filter(r=>r.ar>0);
+  if(_f.type)a=a.filter(r=>(r.type||'미분류')===_f.type);
+  if(_f.year)a=a.filter(r=>String(r.year)===_f.year);
+  if(_f.mgr)a=a.filter(r=>r.mgr===_f.mgr);
+  if(_f.q){const q=_f.q.toLowerCase();a=a.filter(r=>((r.name||'')+(r.memo||'')+(r.mgr||'')+(r.payNote||'')).toLowerCase().indexOf(q)>=0);}
+  const k=_f.sort,d=_f.dir;
+  a.sort((x,y)=>{const a1=x[k],b1=y[k];if(typeof a1==='number'||typeof b1==='number')return d*((a1||0)-(b1||0));return d*String(a1||'').localeCompare(String(b1||''));});
+  return a;
+}
+function setSort(k){if(_f.sort===k)_f.dir*=-1;else{_f.sort=k;_f.dir=-1;}render();}
+function viewList(){
+  const rows=listRows();
+  const years=[...new Set(E.map(r=>String(r.year)).filter(Boolean))].sort();
+  const mgrs=[...new Set(E.map(r=>r.mgr).filter(Boolean))].sort();
+  document.getElementById('pt-a').innerHTML='<button class="btn" onclick="dlCsv()"><i class="bi bi-download"></i> CSV</button>';
+  const arr=k=>_f.sort===k?(_f.dir<0?' ▼':' ▲'):'';
+  let h=`<div class="bar-row">
+    <input class="inp" style="width:230px" placeholder="거래처·적요·담당자 검색" value="${esc(_f.q)}" oninput="_f.q=this.value;render()">
+    <select class="sel" onchange="_f.type=this.value;render()"><option value="">전체 유형</option>${TYPE_ORDER.map(t=>`<option ${_f.type===t?'selected':''}>${t}</option>`).join('')}</select>
+    <select class="sel" onchange="_f.year=this.value;render()"><option value="">전체 연도</option>${years.map(y=>`<option ${_f.year===y?'selected':''}>${y}</option>`).join('')}</select>
+    <select class="sel" onchange="_f.mgr=this.value;render()"><option value="">전체 담당</option>${mgrs.map(m=>`<option ${_f.mgr===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
+    <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;font-weight:600"><input type="checkbox" ${_f.hasAr?'checked':''} onchange="_f.hasAr=this.checked;render()"> 잔액 있는 건만</label>
+    <span class="hint">${rows.length}건 · 미수 ${eok(rows.reduce((s,r)=>s+r.ar,0))}</span></div>`;
+  h+='<div class="card" style="padding:0;overflow:auto;max-height:72vh"><table class="dt"><thead><tr>'
+    +`<th class="l sortable" onclick="setSort('name')">거래처${arr('name')}</th><th class="l sortable" onclick="setSort('saleDate')">매출일${arr('saleDate')}</th><th class="l">적요</th><th class="sortable" onclick="setSort('amt')">원화금액${arr('amt')}</th><th class="sortable" onclick="setSort('coll')">수금${arr('coll')}</th><th class="sortable" onclick="setSort('ar')">미수채권${arr('ar')}</th><th>충당금</th><th class="l sortable" onclick="setSort('type')">유형${arr('type')}</th><th class="l sortable" onclick="setSort('mgr')">담당${arr('mgr')}</th><th class="l">수금계획</th></tr></thead><tbody>`;
+  h+=rows.slice(0,600).map(r=>`<tr class="clk" onclick="openRow('${r.rid}')">
+    <td class="l"><b>${esc(r.name)}</b>${r._edited?' <span class="chip" style="background:#ecfdf5;color:#047857">수정</span>':''}</td>
+    <td class="l">${esc(r.saleDate)}</td><td class="l memo" title="${esc(r.memo)}">${esc(r.memo)}</td>
+    <td>${fmt(r.amt)}</td><td>${fmt(r.coll)}</td><td><b style="color:${r.ar>0?'#b45309':'inherit'}">${fmt(r.ar)}</b></td><td>${fmt(r.prov)}</td>
+    <td class="l">${typeChip(r.type)}</td><td class="l">${esc(r.mgr)}</td><td class="l memo" title="${esc(r.plan)}">${esc(r.plan)}</td></tr>`).join('')
+    ||'<tr><td colspan="10" style="text-align:center;padding:26px;color:var(--muted)">조건에 맞는 채권이 없습니다</td></tr>';
+  h+='</tbody></table></div>';
+  if(rows.length>600)h+=`<div class="hint" style="margin-top:8px">상위 600건만 표시 (필터로 좁혀주세요 · CSV는 전체 내보냄)</div>`;
+  return h;
+}
+function dlCsv(){
+  const rows=listRows();
+  const head=['거래처코드','거래처명','사업자번호','매출일자','년도','적요','원화금액','수금일','수금금액','대손처리','미수채권','충당금','채권유형','담당자','경과년수','입금내역·특이사항','실무의견','향후수금계획'];
+  const body=rows.map(r=>[r.code,r.name,r.bizno,r.saleDate,r.year,r.memo,r.amt,r.collDate,r.coll,r.bad,r.ar,r.prov,r.type,r.mgr,r.elapsed,r.payNote,r.opinion,r.plan]);
+  const csv='﻿'+[head].concat(body).map(a=>a.map(x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const bl=new Blob([csv],{type:'text/csv'});const u=URL.createObjectURL(bl);
+  const a=document.createElement('a');a.href=u;a.download='미수금_'+(RAW.asOf||today())+'.csv';a.click();URL.revokeObjectURL(u);
+}
+
+// ═══ 관리대상 ═══
+let _mf={cls:'',q:''};
+function viewMgmt(){
+  const sum=(RAW.mgmt&&RAW.mgmt.summary)||{};
+  const items=M.filter(i=>(!_mf.cls||i.cls===_mf.cls)&&(!_mf.q||((i.name||'')+(i.mgr||'')).toLowerCase().indexOf(_mf.q.toLowerCase())>=0)).sort((a,b)=>b.ar-a.ar);
+  let h='<div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">';
+  [['집중관리','수금 실행 관리'],['검토필요','분류·조치 검토'],['관리제외','대손·매출취소 처리 예정']].forEach(([c,d])=>{const s=sum[c]||{cnt:M.filter(i=>i.cls===c).length,ar:M.filter(i=>i.cls===c).reduce((x,i)=>x+i.ar,0)};
+    h+=`<div class="kpi clk" onclick="_mf.cls=_mf.cls==='${c}'?'':'${c}';render()" style="${_mf.cls===c?'outline:2px solid '+(CLS_META[c].c):''}"><div class="l">${clsChip(c)} ${d}</div><div class="v">${s.cnt}건</div><div class="s">${eok2(s.ar)}</div></div>`;});
+  const tot=M.reduce((s,i)=>s+i.ar,0);
+  h+=`<div class="kpi"><div class="l">관리대상 합계 <span class="hint">(잔액 보유 채권)</span></div><div class="v">${M.length}건</div><div class="s">${eok2(tot)}</div></div></div>`;
+  h+=`<div class="bar-row"><input class="inp" style="width:230px" placeholder="거래처·담당자 검색" value="${esc(_mf.q)}" oninput="_mf.q=this.value;render()">${_mf.cls?`<button class="btn" onclick="_mf.cls='';render()">필터 해제: ${_mf.cls} ✕</button>`:''}<span class="hint">${items.length}건 표시 · 분류·의견은 행 클릭 후 수정</span></div>`;
+  h+='<div class="card" style="padding:0;overflow:auto;max-height:70vh"><table class="dt"><thead><tr><th>#</th><th class="l">거래처명</th><th class="l">발생</th><th class="l">경과</th><th>미수금액(원)</th><th class="l">담당자</th><th class="l">현재상태</th><th class="l">분류</th><th class="l">분류 근거</th><th class="l">관리 의견</th></tr></thead><tbody>';
+  h+=items.map((i,n)=>`<tr class="clk" onclick="openRow('${i.rid}')"><td>${n+1}</td><td class="l"><b>${esc(i.name)}</b>${i._edited?' <span class="chip" style="background:#ecfdf5;color:#047857">수정</span>':''}</td><td class="l">${esc(i.year)}</td><td class="l hint">${esc(i.elapsed)}</td><td><b>${fmt(i.ar)}</b></td><td class="l">${esc(i.mgr)}</td><td class="l">${typeChip(i.state)}</td><td class="l">${clsChip(i.cls)}</td><td class="l memo" title="${esc(i.basis)}">${esc(i.basis)}</td><td class="l memo" title="${esc(i.opinion)}">${esc(i.opinion)}</td></tr>`).join('')
+    ||'<tr><td colspan="10" style="text-align:center;padding:26px;color:var(--muted)">해당 없음</td></tr>';
+  h+='</tbody></table></div>';
+  h+=`<div class="hint" style="margin-top:8px">분류 기준: 관리제외=대손·매출취소 처리 예정(실익 없음) · 집중관리=수금 실행 대상 · 검토필요=분류 판단 필요 (작성 ${(RAW.mgmt&&RAW.mgmt.asOf)||'-'} · 원본 기준일 ${(RAW.mgmt&&RAW.mgmt.base)||'-'})</div>`;
+  return h;
+}
+
+// ═══ 주간 추이 ═══
+function viewTrend(){
+  const w=(RAW.weekly||[]);
+  let h='<div class="card"><div class="sec">주간 미수잔액 추이 <span class="hint">억원 · 주간 스냅샷 '+w.length+'개</span></div><div style="height:320px"><canvas id="ch-trend2"></canvas></div></div>';
+  h+='<div class="card" style="padding:0;overflow:auto"><table class="dt"><thead><tr><th class="l">주차(기준일)</th><th>채권건수</th><th>채권발생액</th><th>수금누계</th><th>대손처리</th><th>미수잔액</th><th>전주비 미수</th><th>충당금</th>'+TYPE_ORDER.slice(0,4).map(t=>'<th class="l">'+t.replace('채권','')+'</th>').join('')+'</tr></thead><tbody>';
+  for(let i=w.length-1;i>=0;i--){const x=w[i],p=w[i-1];const d=p?x.ar-p.ar:null;
+    h+=`<tr><td class="l"><b>${x.d}</b></td><td>${x.cnt}</td><td>${eok(x.amt)}</td><td>${eok(x.coll)}</td><td>${eok2(x.bad)}</td><td><b>${eok2(x.ar)}</b></td><td class="${d>0?'dn':d<0?'up':''}">${d==null?'-':(d>=0?'+':'')+eok2(d)}</td><td>${eok2(x.prov)}</td>`
+      +TYPE_ORDER.slice(0,4).map(t=>{const a=(x.types||{})[t];return `<td class="l hint">${a?a.cnt+'건 '+eok2(a.ar):'-'}</td>`;}).join('')+'</tr>';}
+  h+='</tbody></table></div>';
+  h+='<div class="hint">전주비 미수: 빨강=증가(악화)·초록=감소(개선). 주간 스냅샷은 재무팀 엑셀 업로드 시 자동 누적됩니다.</div>';
+  return h;
+}
+function drawTrendChart(){
+  const w=(RAW.weekly||[]);const el=document.getElementById('ch-trend2');if(!el||!w.length)return;
+  _charts.push(new Chart(el,{type:'line',data:{labels:w.map(x=>x.d.slice(5)),datasets:[{data:w.map(x=>+(x.ar/1e8).toFixed(2)),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',borderWidth:2,pointRadius:3,pointHoverRadius:6,tension:.25,fill:true}]},
+    options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const x=w[c.dataIndex];return['미수잔액 '+c.parsed.y+'억 ('+x.cnt+'건)','수금누계 '+eok(x.coll)];}}}},scales:{y:{grid:{color:'#f1f3f5'},ticks:{callback:v=>v+'억'}},x:{grid:{display:false}}},maintainAspectRatio:false}}));
+}
+
+// ═══ 임원 보고 ═══
+function viewReport(){
+  const k=kpis();const ya=yearAgg(E);const ys=Object.keys(ya).sort();
+  const delay=(k.ta['지연채권']||{cnt:0,ar:0,prov:0}),lt=(k.ta['장기체납채권']||{cnt:0,ar:0,prov:0});
+  const ltRisk=lt.ar-lt.prov;
+  let h='<div class="card rpt">';
+  h+=`<h1>국내영업 미수금 세부현황 보고</h1><div class="sub">${RAW.asOf} 기준 · 총 ${E.length}건 채권 데이터</div>`;
+  h+='<h4>핵심 요약</h4>';
+  h+=`<div class="sumline">❶ 수금률 <b>${pct(k.collRate)}</b> — 총 매출채권 ${eok(k.tot)}원 중 ${eok(k.coll)}원 수금 완료 (대손처리 ${eok2(k.bad)}원 포함 시 ${pct(k.collRateB)})</div>`;
+  const norm=(k.ta['정상채권']||{ar:0});
+  h+=`<div class="sumline">❷ 잔여 미수금 ${eok(k.arSum)}원 중 ${eok(norm.ar)}원(${pct(k.arSum?norm.ar/k.arSum:0)})은 2025~2026년 당해 매출로 리스사·카드 결제 등 정상 수금 진행 중</div>`;
+  h+=`<div class="sumline">❸ 실질 관리 필요 채권 <b>${eok2(k.risk)}원</b> — 지연채권 ${eok2(delay.ar)}원(Q3 전액 수금 목표) + 장기체납 잔여 위험 ${eok2(ltRisk)}원(충당금 ${pct(lt.ar?lt.prov/lt.ar:0)} 기설정)</div>`;
+  h+=`<div class="sumline">❹ 장기체납채권 ${eok2(lt.ar)}원에 대해 대손충당금 ${eok2(lt.prov)}원 기설정 완료 — 추가 손실 위험액 ${eok2(ltRisk)}원 수준으로 제한적</div>`;
+  h+='<h4>수금 현황 총괄</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">구분</th><th>금액(원)</th><th>금액(억원)</th><th>비율</th><th class="lbl">비고</th></tr></thead><tbody>';
+  h+=`<tr><td class="lbl">연간 총 채권 발생액 (A)</td><td>${fmt(k.tot)}</td><td>${(k.tot/1e8).toFixed(1)}</td><td>100%</td><td class="lbl">${E.length}건 · 2020~2026년</td></tr>`;
+  h+=`<tr><td class="lbl">└ 수금 완료 (B)</td><td>${fmt(k.coll)}</td><td>${(k.coll/1e8).toFixed(1)}</td><td>${pct(k.collRate)}</td><td class="lbl">정상 수금 완료분</td></tr>`;
+  h+=`<tr><td class="lbl">└ 대손처리 (C)</td><td>${fmt(k.bad)}</td><td>${(k.bad/1e8).toFixed(1)}</td><td>${pct(k.tot?k.bad/k.tot:0)}</td><td class="lbl">폐업 거래처 등 기처리 완료</td></tr>`;
+  h+=`<tr class="grand"><td class="lbl">잔여 미수금 (A−B−C)</td><td>${fmt(k.arSum)}</td><td>${(k.arSum/1e8).toFixed(1)}</td><td>${pct(k.tot?k.arSum/k.tot:0)}</td><td class="lbl"></td></tr>`;
+  h+=`<tr><td class="lbl">└ 대손충당금 설정액</td><td>${fmt(k.prov)}</td><td>${(k.prov/1e8).toFixed(1)}</td><td>-</td><td class="lbl">장기체납채권 대상 기설정</td></tr>`;
+  h+=`<tr><td class="lbl">└ 실질 회수 위험액</td><td>${fmt(k.arSum-k.prov)}</td><td>${((k.arSum-k.prov)/1e8).toFixed(1)}</td><td>${pct(k.tot?(k.arSum-k.prov)/k.tot:0)}</td><td class="lbl">대손충당 제외 미수금</td></tr>`;
+  h+='</tbody></table></div>';
+  h+='<h4>잔여 미수금 성격별 분류</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">채권 분류</th><th>건수</th><th>미수채권금액</th><th>대손충당금</th><th>실질 위험액</th></tr></thead><tbody>';
+  TYPE_ORDER.forEach(t=>{const a=k.ta[t];if(!a)return;h+=`<tr><td class="lbl">${typeChip(t)} ${TYPES[t].d}</td><td>${a.cnt}</td><td>${fmt(a.ar)}</td><td>${fmt(a.prov)}</td><td>${fmt(a.ar-a.prov)}</td></tr>`;});
+  h+=`<tr class="grand"><td class="lbl">합계</td><td>${E.length}</td><td>${fmt(k.arSum)}</td><td>${fmt(k.prov)}</td><td>${fmt(k.arSum-k.prov)}</td></tr></tbody></table></div>`;
+  h+='<h4>매출연도별 현황</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">매출연도</th><th>건수</th><th>원화금액(원)</th><th>미수채권(원)</th><th>미수율</th><th>대손충당금(원)</th></tr></thead><tbody>';
+  ys.forEach(y=>{const a=ya[y];h+=`<tr><td class="lbl">${y}년</td><td>${a.cnt}</td><td>${fmt(a.amt)}</td><td>${fmt(a.ar)}</td><td>${pct(a.amt?a.ar/a.amt:0)}</td><td>${fmt(a.prov)}</td></tr>`;});
+  h+=`<tr class="grand"><td class="lbl">합계</td><td>${E.length}</td><td>${fmt(k.tot)}</td><td>${fmt(k.arSum)}</td><td>${pct(k.tot?k.arSum/k.tot:0)}</td><td>${fmt(k.prov)}</td></tr></tbody></table></div>`;
+  h+='<h4>관리 채권 조치 계획</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">구분</th><th>대상</th><th class="lbl">현황 및 원인</th><th class="lbl">조치 내용</th><th class="lbl">목표 기한</th><th class="lbl">담당</th></tr></thead><tbody>';
+  h+=`<tr><td class="lbl">${typeChip('지연채권')} (${eok2(delay.ar)}원)</td><td>${delay.cnt}건</td><td class="lbl" style="white-space:normal">2023~2025년 매출, 할부·팩토링 지연 및 분납 약정 미이행</td><td class="lbl" style="white-space:normal">담당자 직접 접촉 → 분납 약정 재설정 또는 일괄 수금 협의</td><td class="lbl">2026년 9월말 (Q3)</td><td class="lbl">국내영업팀 담당자별</td></tr>`;
+  h+=`<tr><td class="lbl">${typeChip('장기체납채권')} (${eok2(lt.ar)}원)</td><td>${lt.cnt}건</td><td class="lbl" style="white-space:normal">2020~2022년 매출, 대부분 폐업·연락불가 → ${eok2(lt.prov)}원 충당금 기설정</td><td class="lbl" style="white-space:normal">잔여 ${eok2(ltRisk)}원 소송 회수 또는 대손처리 확정 (법무팀 협의)</td><td class="lbl">2026년 12월말</td><td class="lbl">국내영업팀 + 재무팀</td></tr>`;
+  h+='</tbody></table></div>';
+  h+=`<div class="concl">➤ 총 미수금 ${eok(k.arSum)}원 중 실질 회수 위험액은 ${eok2(k.risk)}원(${pct(k.arSum?k.risk/k.arSum:0)})이며, 이 중 장기체납 잔여 ${eok2(ltRisk)}원은 충당금 기설정으로 추가 손실 위험 최소화</div>`;
+  h+='</div>';
+  return h;
+}
+
+// ═══ 데이터 업로드 ═══
+let _up=null;
+function viewUpload(){
+  let h='<div class="card"><div class="sec">재무팀 주간 엑셀 업로드</div>';
+  h+='<div style="font-size:13px;line-height:1.7;color:var(--body)">미수금세부현황 엑셀(주간 시트 <b>YYMMDD</b> 형식 포함)을 올리면:<br>· 최신 주간 시트 → 채권 상세 전체 갱신<br>· 모든 주간 시트 → 주간 추이에 병합 누적(기존 이력 유지)<br>· <b>미수금_관리대상_*</b> 시트가 있으면 관리대상 분류도 갱신<br>· 사이트에서 수정한 수금계획·의견·분류는 <b>그대로 유지</b>됩니다(원본 병합 방식)</div>';
+  h+='<div style="margin-top:16px"><input type="file" id="up-file" accept=".xlsx,.xls" onchange="onUpFile(this.files[0])"></div>';
+  h+='<div id="up-prev" style="margin-top:16px"></div></div>';
+  h+=`<div class="card"><div class="sec">현재 데이터</div><div style="font-size:13px;line-height:1.8">기준일 <b>${RAW.asOf}</b> · 채권 ${E.length}건 · 주간 스냅샷 ${(RAW.weekly||[]).length}개 · 관리대상 ${M.length}건 · 마지막 갱신 ${RAW.updatedAt||'-'}</div></div>`;
+  return h;
+}
+function xlDate(v){
+  if(v==null||v==='')return '';
+  if(v instanceof Date)return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+  if(typeof v==='number'){const d=new Date(Math.round((v-25569)*86400*1000));return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');}
+  const s=String(v).trim();const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[1]+'-'+m[2]+'-'+m[3]:s;
+}
+function xlNum(v){if(v==null||v==='')return 0;const n=Number(String(v).replace(/,/g,''));return isNaN(n)?0:n;}
+function xlStr(v){if(v==null)return '';if(v instanceof Date)return xlDate(v);return String(v).trim();}
+// 주간시트 헤더명 → 필드 매핑
+const HMAP={'구분':'no','거래처코드':'code','거래처 명':'name','거래처명':'name','사업자번호':'bizno','채권구분':'cls','시장 분류':'mkt','부서명':'dept','사업군 분류':'seg','매출일자':'saleDate','년도':'year','적요(매출 내용)':'memo','외화잔액':'fx','원화금액':'amt','수금일':'collDate','수금금액':'coll','감사/부실':'audit','대손처리':'bad','원화 미수채권금액':'ar','대손충당 설정률':'provRate','대손 충당금':'prov','잔존가':'residual','입금내역 및 특이사항':'payNote','경과년수':'elapsed','채권 특성 (TF)':'trait','채권 유형 (TF)':'type','담당자':'mgr','실무진 의견 (TF)':'opinion','지급 기일':'dueNote','향후 수금 계획 (담당자 및 소속부서장)':'plan'};
+const NUMF=new Set(['fx','amt','coll','bad','ar','provRate','prov','residual']);
+function parseWeeklySheet(ws){
+  const g=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  // 헤더행 탐색(거래처명 포함 행)
+  let hi=-1;for(let i=0;i<Math.min(g.length,10);i++){const r=g[i]||[];if(r.some(c=>String(c||'').indexOf('거래처')>=0&&String(c||'').indexOf('코드')<0)&&r.some(c=>String(c||'')==='매출일자')){hi=i;break;}}
+  if(hi<0)return null;
+  const cols={};(g[hi]||[]).forEach((c,j)=>{const k=HMAP[String(c||'').trim()];if(k&&cols[k]===undefined)cols[k]=j;});
+  if(cols.name===undefined||cols.amt===undefined)return null;
+  const rows=[];
+  for(let i=hi+1;i<g.length;i++){const r=g[i]||[];if(!xlStr(r[cols.name]))continue;
+    const o={};
+    Object.keys(HMAP).forEach(h=>{const f=HMAP[h];if(cols[f]===undefined){o[f]=NUMF.has(f)?0:'';return;}
+      const v=r[cols[f]];
+      o[f]=(f==='saleDate'||f==='collDate')?xlDate(v):NUMF.has(f)?xlNum(v):xlStr(v);});
+    if(o.year)o.year=String(o.year).split('.')[0];
+    rows.push(o);}
+  return rows;
+}
+function onUpFile(file){
+  if(!file)return;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:false});
+      const wnames=wb.SheetNames.filter(n=>/^\d{6}$/.test(n)).sort();
+      if(!wnames.length){document.getElementById('up-prev').innerHTML='<div class="editable-note">주간 시트(YYMMDD)를 찾지 못했습니다.</div>';return;}
+      // 모든 주간 시트 → 집계, 최신 시트 → 상세
+      const weekly=[];let latestRows=null,latestD='';
+      wnames.forEach(sn=>{
+        const rows=parseWeeklySheet(wb.Sheets[sn]);if(!rows)return;
+        const d='20'+sn.slice(0,2)+'-'+sn.slice(2,4)+'-'+sn.slice(4,6);
+        const types={};rows.forEach(o=>{const t=o.type||'미분류';types[t]=types[t]||{cnt:0,ar:0};types[t].cnt++;types[t].ar+=o.ar;});
+        weekly.push({d,cnt:rows.length,amt:rows.reduce((s,o)=>s+o.amt,0),coll:rows.reduce((s,o)=>s+o.coll,0),bad:rows.reduce((s,o)=>s+o.bad,0),ar:rows.reduce((s,o)=>s+o.ar,0),prov:rows.reduce((s,o)=>s+o.prov,0),types});
+        if(sn===wnames[wnames.length-1]){latestRows=rows;latestD=d;}
+      });
+      if(!latestRows){document.getElementById('up-prev').innerHTML='<div class="editable-note">주간 시트 파싱 실패 — 헤더 형식을 확인해주세요.</div>';return;}
+      // rid 부여(파이썬 시드와 동일 해시)
+      const seen={};latestRows.forEach(o=>{const b=rid(o.code+'|'+o.saleDate+'|'+String(Math.trunc(o.amt))+'|'+o.memo);const n=seen[b]||0;seen[b]=n+1;o.rid=n===0?b:b+'-'+n;});
+      // 관리대상 시트(있으면)
+      let mgmt=RAW.mgmt||{asOf:'',base:'',summary:{},items:[]};
+      const mgName=wb.SheetNames.find(n=>n.indexOf('미수금_관리대상')===0);
+      if(mgName){const mg=parseMgmtSheet(wb.Sheets[mgName],mgName,latestRows);if(mg)mgmt=mg;}
+      // weekly 병합(기존 이력 유지, 같은 날짜는 새 값)
+      const wmap={};((RAW.weekly)||[]).forEach(x=>wmap[x.d]=x);weekly.forEach(x=>wmap[x.d]=x);
+      const merged=Object.values(wmap).sort((a,b)=>a.d.localeCompare(b.d));
+      _up={asOf:latestD,updatedAt:today(),rows:latestRows,weekly:merged,mgmt};
+      const arSum=latestRows.reduce((s,o)=>s+o.ar,0);
+      const prevAr=(RAW.weekly&&RAW.weekly.length)?RAW.weekly[RAW.weekly.length-1].ar:0;
+      document.getElementById('up-prev').innerHTML=`
+        <div class="card" style="background:#f8fafc;margin:0">
+        <div class="sec">파싱 결과 미리보기</div>
+        <div style="font-size:13px;line-height:1.9">
+        기준일(최신 주간시트): <b>${latestD}</b> ${latestD<=((RAW&&RAW.asOf)||'')?'<span class="chip" style="background:#fee2e2;color:#b91c1c">현재 데이터와 같거나 이전 날짜</span>':'<span class="chip" style="background:#dcfce7;color:#15803d">신규</span>'}<br>
+        채권: <b>${latestRows.length}건</b> · 미수잔액 <b>${eok2(arSum)}</b> (현재 ${eok2(prevAr)} → ${arSum-prevAr>=0?'+':''}${eok2(arSum-prevAr)})<br>
+        주간 스냅샷: 파일 ${weekly.length}개 + 기존 병합 = <b>${merged.length}개</b><br>
+        관리대상: ${mgName?('<b>'+mgmt.items.length+'건</b> (시트 '+esc(mgName)+' 갱신)'):'기존 유지 ('+mgmt.items.length+'건)'}
+        </div>
+        <div style="margin-top:12px"><button class="btn warn" onclick="applyUpload()">✓ 이 내용으로 갱신 적용</button> <button class="btn" onclick="_up=null;render()">취소</button></div>
+        </div>`;
+    }catch(err){document.getElementById('up-prev').innerHTML='<div class="editable-note">파싱 오류: '+esc(err.message)+'</div>';}
+  };
+  rd.readAsArrayBuffer(file);
+}
+function parseMgmtSheet(ws,name,latestRows){
+  try{
+    const g=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+    const grid=g.map(r=>(r||[]).map(c=>xlStr(c)));
+    const mg={asOf:'',base:'',summary:{},items:[]};
+    const tail=name.split('_').pop();if(/^\d{6}$/.test(tail))mg.asOf='20'+tail.slice(0,2)+'-'+tail.slice(2,4)+'-'+tail.slice(4,6);
+    for(const row of grid){for(const c of row){const m=String(c).match(/기준일 (\d{4}-\d{2}-\d{2})/);if(m)mg.base=m[1];}}
+    let hi=-1;grid.forEach((row,i)=>{if(hi<0&&row.indexOf('추천분류')>=0&&row.indexOf('거래처명')>=0)hi=i;});
+    // 요약
+    grid.forEach((row,i)=>{
+      if(row.indexOf('관리제외')>=0&&row.indexOf('집중관리')>=0&&i+2<grid.length&&!mg.summary['관리제외']){
+        const hidx={};row.forEach((c,j)=>{if(c)hidx[c]=j;});
+        ['관리제외','집중관리','검토필요','관리대상 합계'].forEach(k=>{if(hidx[k]!==undefined)mg.summary[k]={cnt:xlNum(grid[i+1][hidx[k]]),ar:xlNum(grid[i+2][hidx[k]])};});
+      }});
+    if(hi<0)return null;
+    const h=grid[hi];const col={};h.forEach((c,j)=>{if(c&&col[c]===undefined)col[c]=j;});
+    const nn=s=>String(s||'').replace(/\([^)]*\)/g,'').replace(/\s/g,'');
+    for(let i=hi+1;i<grid.length;i++){const row=grid[i];if(!row[col['거래처명']])continue;
+      const it={no:row[col['No']],name:row[col['거래처명']],year:row[col['발생년도']]||'',elapsed:row[col['경과년수']]||'',ar:xlNum(row[col['미수금액(원)']]),mgr:row[col['담당자']]||'',state:row[col['현재상태']]||'',cls:row[col['추천분류']]||'',basis:row[col['분류 근거']]||'',opinion:row[col['관리 의견']]||''};
+      let mo=latestRows.find(o=>String(Math.trunc(xlNum(o.no)||0))===String(Math.trunc(xlNum(it.no)||0))&&o.name===it.name);
+      if(!mo)mo=latestRows.find(o=>o.name===it.name&&Math.abs(o.ar-it.ar)<1);
+      if(!mo)mo=latestRows.find(o=>nn(o.name)===nn(it.name)&&Math.abs(o.ar-it.ar)<1);
+      it.rid=mo?mo.rid:'';
+      mg.items.push(it);}
+    return mg.items.length?mg:null;
+  }catch(e){return null;}
+}
+async function applyUpload(){
+  if(!_up)return;
+  const r=await _sb.from('cons_cache').upsert({key:'ar_kr',data:_up},{onConflict:'key'});
+  if(r.error){toast('저장 실패: '+r.error.message);return;}
+  RAW=_up;_up=null;applyEdits();toast('갱신 완료 ✓ 기준일 '+RAW.asOf);setView('home');
+}
+
+// ═══ 상세/편집 모달 ═══
+function openRow(ridv){
+  const r=E.find(x=>x.rid===ridv);if(!r){toast('상세 데이터를 찾을 수 없습니다');return;}
+  const mi=M.find(i=>i.rid===ridv);
+  const ed=EDITS[ridv]||{};
+  const F=(l,v)=>`<div class="fld"><label>${l}</label><div class="fv">${esc(v==null||v===''?'-':v)}</div></div>`;
+  let h=`<div class="mhd"><div><h3>${esc(r.name)}</h3><div class="hint">${esc(r.saleDate)} · ${esc(r.memo)}</div></div><button class="x" onclick="closeModal()">✕</button></div><div class="mbody">`;
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">${typeChip(r.type)}${mi?clsChip(mi.cls):''}${r._edited||ed.cls||ed.mgmtOp?'<span class="chip" style="background:#ecfdf5;color:#047857">사이트 수정됨'+(ed._by?' · '+esc(ed._by.split('@')[0])+' '+esc(ed._at||''):'')+'</span>':''}</div>`;
+  h+='<div class="fgrid">'
+    +F('원화금액',fmt(r.amt)+'원')+F('수금금액',fmt(r.coll)+'원'+(r.collDate?' ('+r.collDate+')':''))
+    +F('미수채권금액',fmt(r.ar)+'원')+F('대손처리',fmt(r.bad)+'원')
+    +F('대손충당금',fmt(r.prov)+'원')+F('경과년수',r.elapsed)
+    +F('담당자',r.mgr)+F('거래처코드',r.code)
+    +F('사업자번호',r.bizno)+F('채권 특성',r.trait)
+    +F('지급기일',r.dueNote)+F('발생년도',r.year)
+    +'</div>';
+  if(mi)h+='<div class="fgrid">'+F('관리 분류근거',mi.basis)+'</div>';
+  h+='<div class="editable-note">✏️ 아래 항목은 수정 가능합니다. 저장 시 원본과 별도로 보관되어, 엑셀 재업로드 후에도 유지됩니다.</div>';
+  h+=`<div class="fgrid" style="grid-template-columns:1fr 1fr">
+    <div class="fld"><label>채권유형</label><select id="ed-type">${TYPE_ORDER.map(t=>`<option ${r.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    ${mi?`<div class="fld"><label>관리 분류</label><select id="ed-cls">${['집중관리','검토필요','관리제외'].map(c=>`<option ${mi.cls===c?'selected':''}>${c}</option>`).join('')}</select></div>`:''}
+  </div>
+  <div class="fld" style="margin-bottom:10px"><label>향후 수금 계획</label><textarea id="ed-plan">${esc(r.plan)}</textarea></div>
+  <div class="fld" style="margin-bottom:10px"><label>입금내역 · 특이사항</label><textarea id="ed-payNote">${esc(r.payNote)}</textarea></div>
+  <div class="fld" style="margin-bottom:10px"><label>실무진 의견</label><textarea id="ed-opinion">${esc(r.opinion)}</textarea></div>
+  ${mi?`<div class="fld" style="margin-bottom:10px"><label>관리 의견</label><textarea id="ed-mgmtOp">${esc(mi.opinion)}</textarea></div>`:''}
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+    ${EDITS[ridv]?'<button class="btn" onclick="resetEdit(\''+ridv+'\')">↩ 원본 복원</button>':''}
+    <button class="btn" onclick="closeModal()">닫기</button>
+    <button class="btn pri" onclick="saveEdit('${ridv}')">저장</button>
+  </div></div>`;
+  document.getElementById('mbox').innerHTML=h;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+async function saveEdit(ridv){
+  const g=id=>{const el=document.getElementById(id);return el?el.value.trim():undefined;};
+  const r=(RAW.rows||[]).find(x=>x.rid===ridv)||{};
+  const mi=((RAW.mgmt&&RAW.mgmt.items)||[]).find(i=>i.rid===ridv);
+  const e=Object.assign({},EDITS[ridv]||{});
+  const set=(k,v,orig)=>{if(v===undefined)return;if(v===String(orig==null?'':orig).trim()){delete e[k];}else{e[k]=v;}};
+  set('type',g('ed-type'),r.type);set('plan',g('ed-plan'),r.plan);set('payNote',g('ed-payNote'),r.payNote);set('opinion',g('ed-opinion'),r.opinion);
+  if(mi){set('cls',g('ed-cls'),mi.cls);set('mgmtOp',g('ed-mgmtOp'),mi.opinion);}
+  const keys=Object.keys(e).filter(k=>k[0]!=='_');
+  if(!keys.length){delete EDITS[ridv];}
+  else{e._by=ME;e._at=today();EDITS[ridv]=e;}
+  const res=await _sb.from('cons_cache').upsert({key:'ar_kr_edits',data:EDITS},{onConflict:'key'});
+  if(res.error){toast('저장 실패: '+res.error.message);return;}
+  applyEdits();closeModal();render();toast('저장됨 ✓');
+}
+async function resetEdit(ridv){
+  if(!EDITS[ridv])return closeModal();
+  if(!confirm('이 채권의 사이트 수정분을 지우고 엑셀 원본으로 되돌릴까요?'))return;
+  delete EDITS[ridv];
+  const res=await _sb.from('cons_cache').upsert({key:'ar_kr_edits',data:EDITS},{onConflict:'key'});
+  if(res.error){toast('실패: '+res.error.message);return;}
+  applyEdits();closeModal();render();toast('복원됨');
+}
+
+boot();
+</script>
+</body>
+</html>
