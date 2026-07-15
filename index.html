@@ -323,7 +323,7 @@ async function loadData(){
 function applyEdits(){
   if(!RAW){E=[];M=[];return;}
   E=(RAW.rows||[]).map(r=>{const e=EDITS[r.rid];if(!e)return r;
-    const c=Object.assign({},r);['plan','payNote','opinion','type'].forEach(k=>{if(e[k]!==undefined&&e[k]!=='')c[k]=e[k];});c._edited=true;return c;});
+    const c=Object.assign({},r);['plan','payNote','opinion','type','nextDate','nextAct'].forEach(k=>{if(e[k]!==undefined&&e[k]!=='')c[k]=e[k];});if(e.log&&e.log.length)c._log=e.log;c._edited=true;return c;});
   M=((RAW.mgmt&&RAW.mgmt.items)||[]).map(i=>{const e=EDITS[i.rid];if(!e)return i;
     const c=Object.assign({},i);if(e.cls!==undefined&&e.cls!=='')c.cls=e.cls;if(e.mgmtOp!==undefined&&e.mgmtOp!=='')c.opinion=e.mgmtOp;if(e.cls||e.mgmtOp)c._edited=true;return c;});
   const h=document.getElementById('hdr-asof');if(h&&RAW.asOf)h.textContent='기준 '+RAW.asOf+' · '+(RAW.rows||[]).length+'건';
@@ -360,6 +360,8 @@ function agingIdx(r){if(!r.saleDate)return 3;const days=Math.floor((new Date(RAW
 function agingBuckets(){const out=AGING_B.map(b=>({k:b.k,cnt:0,ar:0}));E.filter(r=>r.ar>0).forEach(r=>{const i=agingIdx(r);out[i].cnt++;out[i].ar+=r.ar;});return out;}
 function isNoMgr(r){return r.ar>0&&(!r.mgr||r.mgr==='(미배정)');}
 function isNoPlan(r){return r.ar>0&&!(r.plan||'').trim()&&r.type!=='정상채권';}
+function isFollowDue(r){return r.ar>0&&!!r.nextDate&&r.nextDate<=today();}
+function hasFollow(r){return r.ar>0&&!!r.nextDate;}
 function mgrAgg(){const m={};E.filter(r=>r.ar>0).forEach(r=>{const g=r.mgr||'(미배정)';m[g]=m[g]||{cnt:0,ar:0,delay:0,noplan:0,oldest:''};m[g].cnt++;m[g].ar+=r.ar;
   if(r.type==='지연채권'||r.type==='장기체납채권')m[g].delay++;
   if(isNoPlan(r))m[g].noplan++;
@@ -388,7 +390,9 @@ function viewHome(){
   const delay=(k.ta['지연채권']||{cnt:0,rows:[],ar:0});
   const noMgr=E.filter(isNoMgr),noPlan=E.filter(isNoPlan);
   const review=M.filter(i=>i.cls==='검토필요');
+  const due=E.filter(isFollowDue);
   const acts=[
+    {t:'📌 팔로우업 도래',n:due.length+'건 · '+eok2(due.reduce((s,r)=>s+r.ar,0)),d:due.length?'다음 조치일이 오늘이거나 지남 — 연락하세요':'예정된 조치 없음 (상세에서 다음 조치일 입력)',c:'#15803d',fn:`goListSpecial('follow')`},
     {t:'⏰ 지연채권 수금',n:delay.cnt+'건 · '+eok2(delay.ar),d:'Q3말 전액 수금 목표 — 담당자 접촉',c:'#b45309',fn:`goListType('지연채권')`},
     {t:'🧭 검토필요 분류 확정',n:review.length+'건 · '+eok2(review.reduce((s,i)=>s+i.ar,0)),d:'집중관리/관리제외 판단 필요',c:'#b91c1c',fn:`_mf.cls='검토필요';setView('mgmt')`},
     {t:'👤 담당 미배정',n:noMgr.length+'건 · '+eok2(noMgr.reduce((s,r)=>s+r.ar,0)),d:'수금 책임자 지정 필요',c:'#6d28d9',fn:`goListSpecial('noMgr')`},
@@ -446,9 +450,9 @@ function viewHome(){
   return h;
 }
 function goListType(t){_f.type=t;_f.hasAr=(t==='정상채권'||t==='지연채권'||t==='장기체납채권');_f.special='';_f.aging='';setView('list');}
-function goListSpecial(s){_f={q:'',type:'',year:'',mgr:'',hasAr:true,sort:'ar',dir:-1,special:s,aging:''};setView('list');}
-function goListMgr(m){_f={q:'',type:'',year:'',mgr:m,hasAr:true,sort:'ar',dir:-1,special:'',aging:''};setView('list');}
-function goListAging(i){_f={q:'',type:'',year:'',mgr:'',hasAr:true,sort:'ar',dir:-1,special:'',aging:i};setView('list');}
+function goListSpecial(s){_f={q:'',type:'',year:'',mgr:'',hasAr:true,sort:'ar',dir:-1,special:s,aging:'',group:false};setView('list');}
+function goListMgr(m){_f={q:'',type:'',year:'',mgr:m,hasAr:true,sort:'ar',dir:-1,special:'',aging:'',group:false};setView('list');}
+function goListAging(i){_f={q:'',type:'',year:'',mgr:'',hasAr:true,sort:'ar',dir:-1,special:'',aging:i,group:false};setView('list');}
 function drawHomeCharts(){
   const w=(RAW.weekly||[]);
   const el1=document.getElementById('ch-trend');
@@ -459,7 +463,7 @@ function drawHomeCharts(){
 }
 
 // ═══ 채권 목록 ═══
-let _f={q:'',type:'',year:'',mgr:'',hasAr:true,sort:'ar',dir:-1,special:'',aging:''};
+let _f={q:'',type:'',year:'',mgr:'',hasAr:true,sort:'ar',dir:-1,special:'',aging:'',group:false};
 function listRows(){
   let a=E.slice();
   if(_f.hasAr)a=a.filter(r=>r.ar>0);
@@ -468,6 +472,7 @@ function listRows(){
   if(_f.mgr)a=a.filter(r=>r.mgr===_f.mgr);
   if(_f.special==='noMgr')a=a.filter(isNoMgr);
   if(_f.special==='noPlan')a=a.filter(isNoPlan);
+  if(_f.special==='follow')a=a.filter(isFollowDue);
   if(_f.aging!==''&&_f.aging!=null)a=a.filter(r=>r.ar>0&&agingIdx(r)===_f.aging);
   if(_f.q){const q=_f.q.toLowerCase();a=a.filter(r=>((r.name||'')+(r.memo||'')+(r.mgr||'')+(r.payNote||'')).toLowerCase().indexOf(q)>=0);}
   const k=_f.sort,d=_f.dir;
@@ -475,6 +480,7 @@ function listRows(){
   return a;
 }
 function setSort(k){if(_f.sort===k)_f.dir*=-1;else{_f.sort=k;_f.dir=-1;}render();}
+const SPECIAL_LBL={noMgr:'담당 미배정',noPlan:'수금계획 미기재',follow:'팔로우업 도래'};
 function viewList(){
   const rows=listRows();
   const years=[...new Set(E.map(r=>String(r.year)).filter(Boolean))].sort();
@@ -482,22 +488,40 @@ function viewList(){
   document.getElementById('pt-a').innerHTML='<button class="btn" onclick="dlCsv()"><i class="bi bi-download"></i> CSV</button>';
   const arr=k=>_f.sort===k?(_f.dir<0?' ▼':' ▲'):'';
   let h=`<div class="bar-row">
-    <input class="inp" style="width:230px" placeholder="거래처·적요·담당자 검색" value="${esc(_f.q)}" oninput="_f.q=this.value;render()">
+    <div class="seg"><button class="${!_f.group?'on':''}" onclick="_f.group=false;render()">개별 채권</button><button class="${_f.group?'on':''}" onclick="_f.group=true;render()">거래처별</button></div>
+    <input class="inp" style="width:210px" placeholder="거래처·적요·담당자 검색" value="${esc(_f.q)}" oninput="_f.q=this.value;render()">
     <select class="sel" onchange="_f.type=this.value;render()"><option value="">전체 유형</option>${TYPE_ORDER.map(t=>`<option ${_f.type===t?'selected':''}>${t}</option>`).join('')}</select>
     <select class="sel" onchange="_f.year=this.value;render()"><option value="">전체 연도</option>${years.map(y=>`<option ${_f.year===y?'selected':''}>${y}</option>`).join('')}</select>
     <select class="sel" onchange="_f.mgr=this.value;render()"><option value="">전체 담당</option>${mgrs.map(m=>`<option ${_f.mgr===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
     <label style="font-size:12.5px;display:flex;align-items:center;gap:5px;font-weight:600"><input type="checkbox" ${_f.hasAr?'checked':''} onchange="_f.hasAr=this.checked;render()"> 잔액 있는 건만</label>
-    ${_f.special?`<button class="btn" onclick="_f.special='';render()">${_f.special==='noMgr'?'담당 미배정':'수금계획 미기재'} ✕</button>`:''}
+    ${_f.special?`<button class="btn" onclick="_f.special='';render()">${SPECIAL_LBL[_f.special]||_f.special} ✕</button>`:''}
     ${(_f.aging!==''&&_f.aging!=null)?`<button class="btn" onclick="_f.aging='';render()">연령 ${AGING_B[_f.aging].k} ✕</button>`:''}
     <span class="hint">${rows.length}건 · 미수 ${eok(rows.reduce((s,r)=>s+r.ar,0))}</span></div>`;
+  if(_f.group){
+    const g={};rows.forEach(r=>{const k=r.name;g[k]=g[k]||{name:k,cnt:0,amt:0,ar:0,types:{},mgrs:{},last:'',follow:''};const x=g[k];
+      x.cnt++;x.amt+=r.amt;x.ar+=r.ar;x.types[r.type||'미분류']=1;if(r.mgr)x.mgrs[r.mgr]=1;
+      if(r.saleDate>x.last)x.last=r.saleDate;if(r.nextDate&&(!x.follow||r.nextDate<x.follow))x.follow=r.nextDate;});
+    const arrG=Object.values(g).sort((a,b)=>b.ar-a.ar);
+    h+='<div class="card" style="padding:0;overflow:auto;max-height:72vh"><table class="dt"><thead><tr><th class="l">거래처</th><th>채권 건수</th><th>발생액 합계</th><th>미수잔액 합계</th><th class="l">유형</th><th class="l">담당</th><th class="l">최근 매출일</th><th class="l">다음 조치</th></tr></thead><tbody>';
+    h+=arrG.map(x=>`<tr class="clk" onclick="_f.group=false;_f.q='${esc(x.name).replace(/'/g,"\\'")}';render()">
+      <td class="l"><b>${esc(x.name)}</b></td><td>${x.cnt}</td><td>${fmt(x.amt)}</td><td><b style="color:${x.ar>0?'#b45309':'inherit'}">${fmt(x.ar)}</b></td>
+      <td class="l">${Object.keys(x.types).map(typeChip).join(' ')}</td><td class="l">${Object.keys(x.mgrs).map(esc).join(', ')||'-'}</td>
+      <td class="l">${esc(x.last)}</td><td class="l">${x.follow?`<span class="chip" style="background:${x.follow<=today()?'#fee2e2;color:#b91c1c':'#dcfce7;color:#15803d'}">${x.follow}</span>`:'-'}</td></tr>`).join('')
+      ||'<tr><td colspan="8" style="text-align:center;padding:26px;color:var(--muted)">조건에 맞는 거래처가 없습니다</td></tr>';
+    h+='</tbody></table></div>';
+    h+=`<div class="hint" style="margin-top:8px">${arrG.length}개 거래처 · 행 클릭 → 해당 거래처 개별 채권</div>`;
+    return h;
+  }
   h+='<div class="card" style="padding:0;overflow:auto;max-height:72vh"><table class="dt"><thead><tr>'
-    +`<th class="l sortable" onclick="setSort('name')">거래처${arr('name')}</th><th class="l sortable" onclick="setSort('saleDate')">매출일${arr('saleDate')}</th><th class="l">적요</th><th class="sortable" onclick="setSort('amt')">원화금액${arr('amt')}</th><th class="sortable" onclick="setSort('coll')">수금${arr('coll')}</th><th class="sortable" onclick="setSort('ar')">미수채권${arr('ar')}</th><th>충당금</th><th class="l sortable" onclick="setSort('type')">유형${arr('type')}</th><th class="l sortable" onclick="setSort('mgr')">담당${arr('mgr')}</th><th class="l">수금계획</th></tr></thead><tbody>`;
+    +`<th class="l sortable" onclick="setSort('name')">거래처${arr('name')}</th><th class="l sortable" onclick="setSort('saleDate')">매출일${arr('saleDate')}</th><th class="l">적요</th><th class="sortable" onclick="setSort('amt')">원화금액${arr('amt')}</th><th class="sortable" onclick="setSort('coll')">수금${arr('coll')}</th><th class="sortable" onclick="setSort('ar')">미수채권${arr('ar')}</th><th>충당금</th><th class="l sortable" onclick="setSort('type')">유형${arr('type')}</th><th class="l sortable" onclick="setSort('mgr')">담당${arr('mgr')}</th><th class="l sortable" onclick="setSort('nextDate')">조치일${arr('nextDate')}</th><th class="l">수금계획</th></tr></thead><tbody>`;
   h+=rows.slice(0,600).map(r=>`<tr class="clk" onclick="openRow('${r.rid}')">
     <td class="l"><b>${esc(r.name)}</b>${r._edited?' <span class="chip" style="background:#ecfdf5;color:#047857">수정</span>':''}</td>
     <td class="l">${esc(r.saleDate)}</td><td class="l memo" title="${esc(r.memo)}">${esc(r.memo)}</td>
     <td>${fmt(r.amt)}</td><td>${fmt(r.coll)}</td><td><b style="color:${r.ar>0?'#b45309':'inherit'}">${fmt(r.ar)}</b></td><td>${fmt(r.prov)}</td>
-    <td class="l">${typeChip(r.type)}</td><td class="l">${esc(r.mgr)}</td><td class="l memo" title="${esc(r.plan)}">${esc(r.plan)}</td></tr>`).join('')
-    ||'<tr><td colspan="10" style="text-align:center;padding:26px;color:var(--muted)">조건에 맞는 채권이 없습니다</td></tr>';
+    <td class="l">${typeChip(r.type)}</td><td class="l">${esc(r.mgr)}</td>
+    <td class="l">${r.nextDate?`<span class="chip" style="background:${r.nextDate<=today()?'#fee2e2':'#dcfce7'};color:${r.nextDate<=today()?'#b91c1c':'#15803d'}">${r.nextDate}</span>`:'-'}</td>
+    <td class="l memo" title="${esc(r.plan)}">${esc(r.plan)}</td></tr>`).join('')
+    ||'<tr><td colspan="11" style="text-align:center;padding:26px;color:var(--muted)">조건에 맞는 채권이 없습니다</td></tr>';
   h+='</tbody></table></div>';
   if(rows.length>600)h+=`<div class="hint" style="margin-top:8px">상위 600건만 표시 (필터로 좁혀주세요 · CSV는 전체 내보냄)</div>`;
   return h;
@@ -538,6 +562,7 @@ function viewTrend(){
   h+='<div class="card"><div class="sec">주간 미수잔액 추이 <span class="hint">억원 · '+w.length+'주</span></div><div style="height:280px"><canvas id="ch-trend2"></canvas></div></div>';
   h+='<div class="card"><div class="sec">관리채권(지연+장기체납) 잔액 추이 <span class="hint">억원 · Q3말 지연채권 0 목표</span></div><div style="height:280px"><canvas id="ch-risk"></canvas></div></div>';
   h+='</div>';
+  h+='<div class="card"><div class="sec">월별 수금 vs 신규 미수 발생 <span class="hint">억원 · 주간 변동 롤업 — 파랑(수금)이 주황(신규)보다 크면 잔액 감소 추세</span></div><div style="height:260px"><canvas id="ch-month"></canvas></div></div>';
   h+='<div class="card" style="padding:0;overflow:auto"><table class="dt"><thead><tr><th class="l">주차(기준일)</th><th>채권건수</th><th>미수잔액</th><th>전주비</th><th>주간 수금</th><th>신규 미수</th><th>충당금</th>'+TYPE_ORDER.slice(0,4).map(t=>'<th class="l">'+t.replace('채권','')+'</th>').join('')+'<th></th></tr></thead><tbody>';
   for(let i=w.length-1;i>=0;i--){const x=w[i],p=w[i-1];const d=p?x.ar-p.ar:null;
     const ci=chAt(x.d);const c=ci>=0?RAW.changes[ci]:null;
@@ -558,6 +583,14 @@ function drawTrendChart(){
   const risk=w.map(x=>{const t=x.types||{};return +(((t['지연채권']||{ar:0}).ar+(t['장기체납채권']||{ar:0}).ar)/1e8).toFixed(2);});
   if(el2&&w.length)_charts.push(new Chart(el2,{type:'line',data:{labels:w.map(x=>x.d.slice(5)),datasets:[{data:risk,borderColor:'#b45309',backgroundColor:'rgba(180,83,9,.08)',borderWidth:2,pointRadius:3,pointHoverRadius:6,tension:.25,fill:true}]},
     options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const t=w[c.dataIndex].types||{};const dl=t['지연채권']||{cnt:0,ar:0},lt=t['장기체납채권']||{cnt:0,ar:0};return['관리채권 '+c.parsed.y+'억','지연 '+dl.cnt+'건 '+eok2(dl.ar)+' · 장기체납 '+lt.cnt+'건 '+eok2(lt.ar)];}}}},scales:{y:{grid:{color:'#f1f3f5'},ticks:{callback:v=>v+'억'}},x:{grid:{display:false}}},maintainAspectRatio:false}}));
+  // 월별 수금 vs 신규(변동이력 롤업) — 동일 단위 한 축, 2시리즈 범례
+  const el3=document.getElementById('ch-month');
+  const mm={};(RAW.changes||[]).forEach(c=>{const m=c.d.slice(0,7);mm[m]=mm[m]||{coll:0,neu:0};mm[m].coll+=c.sumColl;mm[m].neu+=c.sumNew;});
+  const ms=Object.keys(mm).sort();
+  if(el3&&ms.length)_charts.push(new Chart(el3,{type:'bar',data:{labels:ms,datasets:[
+      {label:'수금',data:ms.map(m=>+(mm[m].coll/1e8).toFixed(2)),backgroundColor:'#2563eb',borderRadius:4,maxBarThickness:36},
+      {label:'신규 미수',data:ms.map(m=>+(mm[m].neu/1e8).toFixed(2)),backgroundColor:'#b45309',borderRadius:4,maxBarThickness:36}]},
+    options:{plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:c=>c.dataset.label+' '+c.parsed.y+'억'}}},scales:{y:{grid:{color:'#f1f3f5'},ticks:{callback:v=>v+'억'}},x:{grid:{display:false}}},maintainAspectRatio:false}}));
 }
 // ── 주간 변동 상세 모달 ──
 function openChange(i){
@@ -735,6 +768,11 @@ function onUpFile(file){
       _up={asOf:latestD,updatedAt:today(),rows:latestRows,weekly:merged,changes:mergedCh,mgmt};
       const arSum=latestRows.reduce((s,o)=>s+o.ar,0);
       const prevAr=(RAW.weekly&&RAW.weekly.length)?RAW.weekly[RAW.weekly.length-1].ar:0;
+      // 안전장치: 건수 급감(재무팀 파일 이상 가능성)·기준일 역행 경고
+      const warns=[];
+      if(RAW.rows&&latestRows.length<RAW.rows.length*0.95)warns.push('채권 건수가 현재('+RAW.rows.length+'건)보다 5% 이상 적습니다('+latestRows.length+'건) — 파일이 일부만 담겼는지 확인하세요.');
+      if(latestD<((RAW&&RAW.asOf)||''))warns.push('파일의 최신 주간시트('+latestD+')가 현재 기준일('+RAW.asOf+')보다 과거입니다 — 적용 시 데이터가 되돌아갑니다.');
+      _up._warns=warns;
       document.getElementById('up-prev').innerHTML=`
         <div class="card" style="background:#f8fafc;margin:0">
         <div class="sec">파싱 결과 미리보기</div>
@@ -744,6 +782,7 @@ function onUpFile(file){
         주간 스냅샷: 파일 ${weekly.length}개 + 기존 병합 = <b>${merged.length}개</b> · 변동이력 <b>${mergedCh.length}건</b>${fileChanges.length?` (최신주 수금 ${fileChanges[fileChanges.length-1].coll.length+fileChanges[fileChanges.length-1].red.length}건 ${eok2(fileChanges[fileChanges.length-1].sumColl)} · 신규 ${fileChanges[fileChanges.length-1].new.length}건)`:''}<br>
         관리대상: ${mgName?('<b>'+mgmt.items.length+'건</b> (시트 '+esc(mgName)+' 갱신)'):'기존 유지 ('+mgmt.items.length+'건)'}
         </div>
+        ${_up._warns.length?`<div class="editable-note" style="background:#fef2f2;border-color:#fecaca;color:#b91c1c;margin-top:10px">${_up._warns.map(w2=>'⚠ '+esc(w2)).join('<br>')}</div>`:''}
         <div style="margin-top:12px"><button class="btn warn" onclick="applyUpload()">✓ 이 내용으로 갱신 적용</button> <button class="btn" onclick="_up=null;render()">취소</button></div>
         </div>`;
     }catch(err){document.getElementById('up-prev').innerHTML='<div class="editable-note">파싱 오류: '+esc(err.message)+'</div>';}
@@ -779,6 +818,8 @@ function parseMgmtSheet(ws,name,latestRows){
 }
 async function applyUpload(){
   if(!_up)return;
+  if(_up._warns&&_up._warns.length&&!confirm('경고가 있습니다:\n\n'+_up._warns.join('\n')+'\n\n그래도 적용할까요?'))return;
+  delete _up._warns;
   const r=await _sb.from('cons_cache').upsert({key:'ar_kr',data:_up},{onConflict:'key'});
   if(r.error){toast('저장 실패: '+r.error.message);return;}
   RAW=_up;_up=null;applyEdits();toast('갱신 완료 ✓ 기준일 '+RAW.asOf);setView('home');
@@ -801,11 +842,28 @@ function openRow(ridv){
     +F('지급기일',r.dueNote)+F('발생년도',r.year)
     +'</div>';
   if(mi)h+='<div class="fgrid">'+F('관리 분류근거',mi.basis)+'</div>';
+  // 이 거래처의 다른 채권
+  const rel=E.filter(x=>x.name===r.name&&x.rid!==r.rid);
+  if(rel.length){
+    const relAr=rel.reduce((s,x)=>s+x.ar,0);
+    h+=`<div class="fld" style="margin-bottom:14px"><label>🔗 이 거래처의 다른 채권 ${rel.length}건 (잔액 합계 ${fmt(relAr)}원 · 본건 포함 ${fmt(relAr+r.ar)}원)</label>`
+      +rel.sort((a,b)=>b.ar-a.ar).slice(0,8).map(x=>`<div style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:12.5px;cursor:pointer" onclick="openRow('${x.rid}')"><span style="color:var(--muted);width:80px;flex-shrink:0">${esc(x.saleDate)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.memo)}</span>${typeChip(x.type)}<b style="color:${x.ar>0?'#b45309':'var(--muted)'}">${fmt(x.ar)}</b></div>`).join('')
+      +(rel.length>8?`<div class="hint">외 ${rel.length-8}건 — 목록에서 거래처별 보기</div>`:'')+'</div>';
+  }
+  // 수금 활동 이력
+  const log=(EDITS[ridv]&&EDITS[ridv].log)||[];
+  if(log.length){
+    h+=`<div class="fld" style="margin-bottom:14px"><label>🕘 수금 활동 이력 ${log.length}건</label>`
+      +log.slice().reverse().map(x=>`<div style="display:flex;gap:8px;padding:5px 0;font-size:12.5px;border-bottom:1px dashed var(--line)"><span style="color:var(--muted);width:80px;flex-shrink:0">${esc(x.d)}</span><span style="flex:1;color:var(--ink)">${esc(x.t)}</span><span class="hint">${esc((x.by||'').split('@')[0])}</span></div>`).join('')+'</div>';
+  }
   h+='<div class="editable-note">✏️ 아래 항목은 수정 가능합니다. 저장 시 원본과 별도로 보관되어, 엑셀 재업로드 후에도 유지됩니다.</div>';
   h+=`<div class="fgrid" style="grid-template-columns:1fr 1fr">
     <div class="fld"><label>채권유형</label><select id="ed-type">${TYPE_ORDER.map(t=>`<option ${r.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
     ${mi?`<div class="fld"><label>관리 분류</label><select id="ed-cls">${['집중관리','검토필요','관리제외'].map(c=>`<option ${mi.cls===c?'selected':''}>${c}</option>`).join('')}</select></div>`:''}
+    <div class="fld"><label>다음 조치일 <span class="hint">(도래 시 대시보드 팔로우업에 표시)</span></label><input type="date" id="ed-nextDate" value="${esc(r.nextDate||'')}"></div>
+    <div class="fld"><label>다음 조치 내용</label><input id="ed-nextAct" value="${esc(r.nextAct||'')}" placeholder="예: 분납 재약정 통화"></div>
   </div>
+  <div class="fld" style="margin-bottom:10px"><label>➕ 활동 기록 추가 <span class="hint">(저장 시 오늘 날짜·작성자로 이력에 쌓임)</span></label><textarea id="ed-log" placeholder="예: 원장 통화 — 7월 말 500만원 입금 약속"></textarea></div>
   <div class="fld" style="margin-bottom:10px"><label>향후 수금 계획</label><textarea id="ed-plan">${esc(r.plan)}</textarea></div>
   <div class="fld" style="margin-bottom:10px"><label>입금내역 · 특이사항</label><textarea id="ed-payNote">${esc(r.payNote)}</textarea></div>
   <div class="fld" style="margin-bottom:10px"><label>실무진 의견</label><textarea id="ed-opinion">${esc(r.opinion)}</textarea></div>
@@ -828,7 +886,11 @@ async function saveEdit(ridv){
   const e=Object.assign({},EDITS[ridv]||{});
   const set=(k,v,orig)=>{if(v===undefined)return;if(v===String(orig==null?'':orig).trim()){delete e[k];}else{e[k]=v;}};
   set('type',g('ed-type'),r.type);set('plan',g('ed-plan'),r.plan);set('payNote',g('ed-payNote'),r.payNote);set('opinion',g('ed-opinion'),r.opinion);
+  set('nextDate',g('ed-nextDate'),'');set('nextAct',g('ed-nextAct'),'');
   if(mi){set('cls',g('ed-cls'),mi.cls);set('mgmtOp',g('ed-mgmtOp'),mi.opinion);}
+  const logTxt=g('ed-log');
+  if(logTxt){e.log=(e.log||[]).concat([{d:today(),by:ME,t:logTxt}]);}
+  if(e.log&&!e.log.length)delete e.log;
   const keys=Object.keys(e).filter(k=>k[0]!=='_');
   if(!keys.length){delete EDITS[ridv];}
   else{e._by=ME;e._at=today();EDITS[ridv]=e;}
