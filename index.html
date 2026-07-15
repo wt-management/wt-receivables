@@ -578,14 +578,23 @@ function woReasons(r){
   else if(yrs>=3&&r.type==='장기체납채권')rs.push(yrs+'년 경과');
   return rs;
 }
-function woVetted(r){const mi=M.find(i=>i.rid===r.rid);return !!(mi&&mi.cls==='관리제외');}
-function woCaution(r){const mi=M.find(i=>i.rid===r.rid);const txt=((mi&&mi.basis)||'')+' '+(r.plan||'')+' '+(r.payNote||'');return /분납|입금|완제/.test(txt);}
+// 우선순위 등급: 금융기관 자산건전성 5단계 분류(정상/요주의/고정/회수의문/추정손실) 관행을 차용해
+// "사건 발생여부 + 충당금 커버율 + 최근 상환활동" 3요소로 손실처리 후보를 3등급으로 재분류.
+function woTier(r){
+  const mi=M.find(i=>i.rid===r.rid);
+  const txt=((mi&&mi.basis)||'')+' '+(r.plan||'')+' '+(r.payNote||'');
+  if(/분납|입금|완제/.test(txt))return{n:3,l:'요주의급',s:'활성 상환중·보류 권장',c:'#0369a1',bg:'#e0f2fe'};
+  const hasEvent=/폐업/.test(r.name)||r.trait==='폐업'||r.trait==='도주'||(mi&&mi.cls==='관리제외');
+  const fullProv=r.ar>0&&r.prov>=r.ar*0.999;
+  if(hasEvent&&fullProv)return{n:1,l:'추정손실급',s:'최우선 손실처리',c:'#b91c1c',bg:'#fee2e2'};
+  return{n:2,l:'회수의문급',s:'개별검토 필요',c:'#b45309',bg:'#fef3c7'};
+}
 function woCands(){
   return E.filter(r=>r.ar>0).map(r=>({r,rs:woReasons(r)})).filter(x=>{
     if(woOf(x.r))return true;  // 상태 지정된 건은 항상 표시
     const strong=x.rs.some(s=>/관리제외|폐업|회수불가|대손|충당금/.test(s));
     return strong||(x.r.type==='장기체납채권'&&x.rs.length>0);
-  }).sort((a,b)=>(b.rs.length-a.rs.length)||(b.r.ar-a.r.ar));
+  }).sort((a,b)=>(woTier(a.r).n-woTier(b.r).n)||(b.rs.length-a.rs.length)||(b.r.ar-a.r.ar));
 }
 async function woSet(ridv,st){
   const e=Object.assign({},EDITS[ridv]||{});
@@ -607,10 +616,10 @@ function viewWo(){
   const covPct=a=>sum(a)?Math.round(sumProv(a)/sum(a)*100):0;
   document.getElementById('pt-a').innerHTML='<button class="btn" onclick="woCsv()"><i class="bi bi-download"></i> CSV</button> <button class="btn pri" onclick="_woMode=\'doc\';render()"><i class="bi bi-file-earmark-text"></i> 품의서 생성</button>';
   if(_woMode==='doc')return viewWoDoc(cf);
-  let h='<div class="editable-note" style="background:#f0f9ff;border-color:#bae6fd;color:#075985">회의 후속: 회수 실익이 없는 채권을 선별해 <b>대손처리 품의 리스트</b>를 확정합니다. 근거는 원본 데이터(폐업·회수불가·충당금·관리분류)에서 자동 수집되며, 최종 판단(확정/소송/보류/제외)만 지정하면 품의서가 만들어집니다.</div>';
+  let h='<div class="editable-note" style="background:#f0f9ff;border-color:#bae6fd;color:#075985">회의 후속: 회수 실익이 없는 채권을 선별해 <b>대손처리 품의 리스트</b>를 확정합니다. 근거는 원본 데이터(폐업·회수불가·충당금·관리분류)에서 자동 수집되며, 최종 판단(확정/소송/보류/제외)만 지정하면 품의서가 만들어집니다.<br>우선순위 등급(추정손실급/회수의문급/요주의급)은 금융기관 자산건전성 분류 관행을 참고해 사건발생여부·충당금커버율·최근상환활동으로 매긴 참고값입니다.</div>';
   h+='<div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">';
-  const vetCnt=cands.filter(x=>woVetted(x.r)).length;
-  h+=`<div class="kpi clk" onclick="_woF='';render()" style="${_woF===''?'outline:2px solid #64748b':''}"><div class="l">후보 전체</div><div class="v">${cands.length}건</div><div class="s">예상손실 ${eok2(addLoss(cands))} · TF검증 ${vetCnt}건 · 자동추출 ${cands.length-vetCnt}건</div></div>`;
+  const t1=cands.filter(x=>woTier(x.r).n===1).length,t2=cands.filter(x=>woTier(x.r).n===2).length,t3=cands.filter(x=>woTier(x.r).n===3).length;
+  h+=`<div class="kpi clk" onclick="_woF='';render()" style="${_woF===''?'outline:2px solid #64748b':''}"><div class="l">후보 전체</div><div class="v">${cands.length}건</div><div class="s">예상손실 ${eok2(addLoss(cands))} · 추정손실급 ${t1} · 회수의문급 ${t2} · 요주의급 ${t3}</div></div>`;
   h+=`<div class="kpi clk" onclick="_woF='confirm';render()" style="${_woF==='confirm'?'outline:2px solid #b91c1c':''}"><div class="l">🧾 대손 확정(품의)</div><div class="v" style="color:#b91c1c">${cf.length}건</div><div class="s">${eok2(sum(cf))} · 손실 ${eok2(addLoss(cf))}</div></div>`;
   h+=`<div class="kpi clk" onclick="_woF='sue';render()" style="${_woF==='sue'?'outline:2px solid #6d28d9':''}"><div class="l">⚖ 소송 회수</div><div class="v" style="color:#6d28d9">${su.length}건</div><div class="s">${eok2(sum(su))} · 손실추정 ${eok2(addLoss(su))}</div></div>`;
   h+=`<div class="kpi clk" onclick="_woF='hold';render()" style="${_woF==='hold'?'outline:2px solid #b45309':''}"><div class="l">⏸ 보류(추심)</div><div class="v" style="color:#b45309">${ho.length}건</div><div class="s">${eok2(sum(ho))} · 손실추정 ${eok2(addLoss(ho))}</div></div>`;
@@ -619,8 +628,8 @@ function viewWo(){
   const rows=_woF===''?cands:cands.filter(x=>{const w=woOf(x.r);return w&&w.st===_woF;});
   const opts=st=>`<option value="">미검토</option>`+Object.keys(WO_ST).map(k=>`<option value="${k}" ${st===k?'selected':''}>${WO_ST[k].l}</option>`).join('');
   h+='<div class="card" style="padding:0;overflow:auto;max-height:66vh"><table class="dt"><thead><tr><th>#</th><th class="l">거래처</th><th class="l">매출일</th><th>미수잔액</th><th>충당금</th><th>추가손실</th><th class="l">근거 (자동수집)</th><th class="l">담당</th><th class="l">상태</th></tr></thead><tbody>';
-  h+=rows.map((x,i)=>{const r=x.r,w=woOf(r),vetted=woVetted(r),caution=woCaution(r);return `<tr class="clk" onclick="openRow('${r.rid}')">
-    <td>${i+1}</td><td class="l"><b>${esc(r.name)}</b> ${vetted?'<span class="chip" style="background:#ecfdf5;color:#047857;font-size:10px">TF검증</span>':'<span class="chip" style="background:#fef9c3;color:#854d0e;font-size:10px">자동추출</span>'}${caution?' <span class="chip" style="background:#fee2e2;color:#b91c1c;font-size:10px">⚠ 최근입금·분납중</span>':''}</td><td class="l">${esc(r.saleDate)}</td>
+  h+=rows.map((x,i)=>{const r=x.r,w=woOf(r),tier=woTier(r);return `<tr class="clk" onclick="openRow('${r.rid}')">
+    <td>${i+1}</td><td class="l"><b>${esc(r.name)}</b> <span class="chip" style="background:${tier.bg};color:${tier.c};font-size:10px" title="${esc(tier.s)}">${tier.l}</span></td><td class="l">${esc(r.saleDate)}</td>
     <td><b>${fmt(r.ar)}</b></td><td>${fmt(r.prov)}</td><td style="color:${r.ar-r.prov>1000?'#b91c1c':'inherit'};font-weight:700">${fmt(Math.max(0,r.ar-r.prov))}</td>
     <td class="l" style="white-space:normal;min-width:220px">${x.rs.map(s=>`<span class="chip" style="background:#f1f5f9;color:#475569;margin:1px 2px 1px 0">${esc(s)}</span>`).join('')||'-'}</td>
     <td class="l">${esc(r.mgr)}</td>
@@ -652,8 +661,8 @@ function viewWoDoc(cf){
 }
 function woCsv(){
   const cands=woCands();
-  const head=['상태','검증여부','최근입금주의','거래처명','사업자번호','매출일','년도','미수잔액','충당금','추가손실','근거','담당자','채권유형','검토자','검토일'];
-  const body=cands.map(x=>{const r=x.r,w=woOf(r);return [w?WO_ST[w.st].l:'미검토',woVetted(r)?'TF검증':'자동추출',woCaution(r)?'주의':'',r.name,r.bizno,r.saleDate,r.year,r.ar,r.prov,Math.max(0,r.ar-r.prov),x.rs.join(' · '),r.mgr,r.type,w?w._by:'',w?w._at:''];});
+  const head=['상태','우선순위등급','거래처명','사업자번호','매출일','년도','미수잔액','충당금','추가손실','근거','담당자','채권유형','검토자','검토일'];
+  const body=cands.map(x=>{const r=x.r,w=woOf(r);return [w?WO_ST[w.st].l:'미검토',woTier(r).l,r.name,r.bizno,r.saleDate,r.year,r.ar,r.prov,Math.max(0,r.ar-r.prov),x.rs.join(' · '),r.mgr,r.type,w?w._by:'',w?w._at:''];});
   const csv='﻿'+[head].concat(body).map(a=>a.map(x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const bl=new Blob([csv],{type:'text/csv'});const u=URL.createObjectURL(bl);
   const a=document.createElement('a');a.href=u;a.download='손실처리검토_'+(RAW.asOf||today())+'.csv';a.click();URL.revokeObjectURL(u);
