@@ -23,7 +23,7 @@ input,select,textarea{font-family:inherit}
 #app{display:none}
 /* 상단 헤더(일보 스타일) */
 .hdr{position:sticky;top:0;z-index:40;background:#0f172a;color:#fff}
-.hdr-in{max-width:1560px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hdr-in{max-width:none;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:11px}
 .brand .lg{width:37px;height:37px;border-radius:10px;background:linear-gradient(135deg,#d97706,#b45309);display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 5px 14px rgba(180,83,9,.35)}
 .brand b{color:#fff;font-size:14.5px;font-weight:800;display:block;line-height:1.1}.brand small{display:block;color:#64748b;font-size:10.5px;margin-top:1px}
@@ -42,14 +42,14 @@ input,select,textarea{font-family:inherit}
 .sw-item{border-radius:8px;padding:9px 10px;display:flex;align-items:center;gap:9px;color:#94a3b8;font-size:12.5px;cursor:pointer;font-weight:600}
 .sw-item:hover{background:rgba(255,255,255,.1);color:#fff}
 .sw-badge{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:19px;color:#fff;border-radius:6px;font-size:10px;font-weight:700;padding:0 5px;flex-shrink:0}
-.nav{max-width:1560px;margin:0 auto;padding:0 16px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;border-top:1px solid rgba(255,255,255,.08)}
+.nav{max-width:none;margin:0 auto;padding:0 16px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;border-top:1px solid rgba(255,255,255,.08)}
 .nav::-webkit-scrollbar{display:none}
 .nav a{display:flex;align-items:center;gap:7px;padding:11px 14px 12px;font-size:13.5px;font-weight:600;color:#94a3b8;border-bottom:2.5px solid transparent;white-space:nowrap;cursor:pointer;text-decoration:none}
 .nav a .ico{font-size:15px}
 .nav a:hover{color:#fff}
 .nav a.active{color:#fff;border-bottom-color:#f59e0b}
 /* 메인 */
-#main{max-width:1560px;margin:0 auto;min-height:60vh}
+#main{max-width:none;min-height:60vh}
 .pagetitle{padding:22px 24px 2px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .pagetitle h2{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.3px}
 .pagetitle .desc{color:var(--muted);font-size:12.5px;margin-top:4px}
@@ -112,7 +112,11 @@ table.rt{width:100%;border-collapse:collapse;font-size:12.5px;min-width:700px}
 /* 토스트 */
 #toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:99;display:none;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 /* 임원 보고(인쇄) */
-.rpt{max-width:900px}
+.rpt{max-width:none}
+.rpt-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 40px;align-items:start}
+.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;align-items:start}
+@media(max-width:1150px){.rpt-grid,.qa-grid{display:block}}
+@media print{.rpt-grid,.qa-grid{display:block}}
 .rpt h1{font-size:20px;color:var(--ink);text-align:center;margin-bottom:2px}
 .rpt .sub{text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:22px}
 .rpt h4{font-size:14.5px;color:var(--ink);margin:22px 0 10px;padding-left:9px;border-left:4px solid var(--brand)}
@@ -714,6 +718,7 @@ function viewReport(){
   let h='<div class="card rpt">';
   h+=`<h1>국내영업 미수금 세부현황 보고</h1><div class="sub">${RAW.asOf} 기준 · 총 ${E.length}건 채권 데이터</div>`;
   if(dl&&lc)h+=`<div style="text-align:center;margin:-10px 0 18px;font-size:12.5px;color:var(--body)">전주(${dl.pd}) 대비 미수 <b class="${dl.ar>0?'dn':'up'}">${dl.ar>=0?'+':''}${eok2(dl.ar)}</b> · 주간 수금 <b class="up">${lc.coll.length+lc.red.length}건 ${eok2(lc.sumColl)}</b> · 신규 미수 ${lc.new.length}건 ${eok2(lc.sumNew)}</div>`;
+  h+='<div class="rpt-grid"><div>';
   h+='<h4>핵심 요약</h4>';
   h+=`<div class="sumline">❶ 수금률 <b>${pct(k.collRate)}</b> — 총 매출채권 ${eok(k.tot)}원 중 ${eok(k.coll)}원 수금 완료 (대손처리 ${eok2(k.bad)}원 포함 시 ${pct(k.collRateB)})</div>`;
   const norm=(k.ta['정상채권']||{ar:0});
@@ -728,12 +733,14 @@ function viewReport(){
   h+=`<tr><td class="lbl">└ 대손충당금 설정액</td><td>${fmt(k.prov)}</td><td>${(k.prov/1e8).toFixed(1)}</td><td>-</td><td class="lbl">장기체납채권 대상 기설정</td></tr>`;
   h+=`<tr><td class="lbl">└ 실질 회수 위험액</td><td>${fmt(k.arSum-k.prov)}</td><td>${((k.arSum-k.prov)/1e8).toFixed(1)}</td><td>${pct(k.tot?(k.arSum-k.prov)/k.tot:0)}</td><td class="lbl">대손충당 제외 미수금</td></tr>`;
   h+='</tbody></table></div>';
+  h+='</div><div>';
   h+='<h4>잔여 미수금 성격별 분류</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">채권 분류</th><th>건수</th><th>미수채권금액</th><th>대손충당금</th><th>실질 위험액</th></tr></thead><tbody>';
   TYPE_ORDER.forEach(t=>{const a=k.ta[t];if(!a)return;h+=`<tr><td class="lbl">${typeChip(t)} ${TYPES[t].d}</td><td>${a.cnt}</td><td>${fmt(a.ar)}</td><td>${fmt(a.prov)}</td><td>${fmt(a.ar-a.prov)}</td></tr>`;});
   h+=`<tr class="grand"><td class="lbl">합계</td><td>${E.length}</td><td>${fmt(k.arSum)}</td><td>${fmt(k.prov)}</td><td>${fmt(k.arSum-k.prov)}</td></tr></tbody></table></div>`;
   h+='<h4>매출연도별 현황</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">매출연도</th><th>건수</th><th>원화금액(원)</th><th>미수채권(원)</th><th>미수율</th><th>대손충당금(원)</th></tr></thead><tbody>';
   ys.forEach(y=>{const a=ya[y];h+=`<tr><td class="lbl">${y}년</td><td>${a.cnt}</td><td>${fmt(a.amt)}</td><td>${fmt(a.ar)}</td><td>${pct(a.amt?a.ar/a.amt:0)}</td><td>${fmt(a.prov)}</td></tr>`;});
   h+=`<tr class="grand"><td class="lbl">합계</td><td>${E.length}</td><td>${fmt(k.tot)}</td><td>${fmt(k.arSum)}</td><td>${pct(k.tot?k.arSum/k.tot:0)}</td><td>${fmt(k.prov)}</td></tr></tbody></table></div>`;
+  h+='</div></div>';
   h+='<h4>관리 채권 조치 계획</h4><div class="tbl-scroll"><table class="rt"><thead><tr><th class="lbl">구분</th><th>대상</th><th class="lbl">현황 및 원인</th><th class="lbl">조치 내용</th><th class="lbl">목표 기한</th><th class="lbl">담당</th></tr></thead><tbody>';
   h+=`<tr><td class="lbl">${typeChip('지연채권')} (${eok2(delay.ar)}원)</td><td>${delay.cnt}건</td><td class="lbl" style="white-space:normal">2023~2025년 매출, 할부·팩토링 지연 및 분납 약정 미이행</td><td class="lbl" style="white-space:normal">담당자 직접 접촉 → 분납 약정 재설정 또는 일괄 수금 협의</td><td class="lbl">2026년 9월말 (Q3)</td><td class="lbl">국내영업팀 담당자별</td></tr>`;
   h+=`<tr><td class="lbl">${typeChip('장기체납채권')} (${eok2(lt.ar)}원)</td><td>${lt.cnt}건</td><td class="lbl" style="white-space:normal">2020~2022년 매출, 대부분 폐업·연락불가 → ${eok2(lt.prov)}원 충당금 기설정</td><td class="lbl" style="white-space:normal">잔여 ${eok2(ltRisk)}원 소송 회수 또는 대손처리 확정 (법무팀 협의)</td><td class="lbl">2026년 12월말</td><td class="lbl">국내영업팀 + 재무팀</td></tr>`;
@@ -763,7 +770,7 @@ function viewReport(){
     ['2026년 미수율('+pct(y26.amt?y26.ar/y26.amt:0)+')이 다른 해보다 높아 보이는데 문제 없습니까?',
      '2026년은 당해 매출이라 아직 결제 주기가 남아있는 리스·카드 결제 건이 많기 때문입니다. 실제 부실이 아니라 정상적인 수금 사이클상의 미수율입니다.']
   ];
-  h+=QA.map(([q,a])=>`<details class="qa" open><summary>${q}</summary><div class="a">${a}</div></details>`).join('');
+  h+='<div class="qa-grid">'+QA.map(([q,a])=>`<details class="qa" open><summary>${q}</summary><div class="a">${a}</div></details>`).join('')+'</div>';
   h+='</div>';
   return h;
 }
