@@ -346,7 +346,9 @@ async function loadData(){
 function applyEdits(){
   if(!RAW){E=[];M=[];return;}
   E=(RAW.rows||[]).map(r=>{const e=EDITS[r.rid];if(!e)return r;
-    const c=Object.assign({},r);['mgr','plan','payNote','opinion','type','nextDate','nextAct'].forEach(k=>{if(e[k]!==undefined&&e[k]!=='')c[k]=e[k];});if(e.log&&e.log.length)c._log=e.log;c._edited=true;return c;});
+    const c=Object.assign({},r);['mgr','plan','payNote','opinion','type','nextDate','nextAct'].forEach(k=>{if(e[k]!==undefined&&e[k]!=='')c[k]=e[k];});if(e.log&&e.log.length)c._log=e.log;c._edited=true;
+    if(e.mgr!==undefined&&e.mgr!==''&&r.mgr&&r.mgr!==e.mgr)c._mgrConflict=r.mgr;
+    return c;});
   M=((RAW.mgmt&&RAW.mgmt.items)||[]).map(i=>{const e=EDITS[i.rid];if(!e)return i;
     const c=Object.assign({},i);if(e.cls!==undefined&&e.cls!=='')c.cls=e.cls;if(e.mgmtOp!==undefined&&e.mgmtOp!=='')c.opinion=e.mgmtOp;if(e.cls||e.mgmtOp)c._edited=true;return c;});
   const h=document.getElementById('hdr-asof');if(h&&RAW.asOf)h.textContent='기준 '+RAW.asOf+' · '+(RAW.rows||[]).length+'건';
@@ -386,6 +388,7 @@ function agingIdx(r){if(!r.saleDate)return 3;const days=Math.floor((new Date(RAW
 function agingBuckets(){const out=AGING_B.map(b=>({k:b.k,cnt:0,ar:0}));E.filter(r=>r.ar>0).forEach(r=>{const i=agingIdx(r);out[i].cnt++;out[i].ar+=r.ar;});return out;}
 function isNoMgr(r){return r.ar>0&&(!r.mgr||r.mgr==='(미배정)');}
 function isNoPlan(r){return r.ar>0&&!(r.plan||'').trim()&&r.type!=='정상채권';}
+function hasMgrConflict(r){return r.ar>0&&!!r._mgrConflict;}
 function isFollowDue(r){return r.ar>0&&!!r.nextDate&&r.nextDate<=today();}
 function hasFollow(r){return r.ar>0&&!!r.nextDate;}
 function mgrAgg(){const m={};E.filter(r=>r.ar>0).forEach(r=>{const g=r.mgr||'(미배정)';m[g]=m[g]||{cnt:0,ar:0,delay:0,noplan:0,oldest:''};m[g].cnt++;m[g].ar+=r.ar;
@@ -424,6 +427,8 @@ function viewHome(){
   ];
   const woc=woCands();const wocUn=woc.filter(x=>!woOf(x.r));
   acts.push({t:'🧾 손실처리 후보',n:woc.length+'건 · '+eok2(woc.reduce((s,x)=>s+x.r.ar,0)),d:wocUn.length?('미검토 '+wocUn.length+'건 — 대손 품의 검토'):'전건 검토 완료 — 품의서 출력 가능',c:'#334155',fn:`setView('wo')`});
+  const mgrConf=E.filter(hasMgrConflict);
+  if(mgrConf.length)acts.push({t:'🔀 담당자 값 충돌',n:mgrConf.length+'건 · '+eok2(mgrConf.reduce((s,r)=>s+r.ar,0)),d:'재무팀 파일 값과 사이트 입력값이 달라요 — 확인 필요',c:'#dc2626',fn:`goListSpecial('mgrConflict')`});
   let h='<div class="sec">조치 필요 <span class="hint">이번 주 할 일 — 카드 클릭 → 해당 목록</span></div>';
   h+='<div class="grid acts">'+acts.map(a=>`<div class="act" style="border-left-color:${a.c}" onclick="${a.fn}"><div class="t">${a.t}</div><div class="n">${a.n}</div><div class="d">${a.d}</div></div>`).join('')+'</div>';
   // ── 이번 주 변동 ──
@@ -502,6 +507,7 @@ function listRows(){
   if(_f.special==='noPlan')a=a.filter(isNoPlan);
   if(_f.special==='follow')a=a.filter(isFollowDue);
   if(_f.special==='hasProv')a=a.filter(r=>r.prov>0);
+  if(_f.special==='mgrConflict')a=a.filter(hasMgrConflict);
   if(_f.aging!==''&&_f.aging!=null)a=a.filter(r=>r.ar>0&&agingIdx(r)===_f.aging);
   if(_f.q){const q=_f.q.toLowerCase();a=a.filter(r=>((r.name||'')+(r.memo||'')+(r.mgr||'')+(r.payNote||'')).toLowerCase().indexOf(q)>=0);}
   const k=_f.sort,d=_f.dir;
@@ -509,7 +515,7 @@ function listRows(){
   return a;
 }
 function setSort(k){if(_f.sort===k)_f.dir*=-1;else{_f.sort=k;_f.dir=-1;}render();}
-const SPECIAL_LBL={noMgr:'담당 미배정',noPlan:'수금계획 미기재',follow:'팔로우업 도래',hasProv:'대손충당금 설정됨'};
+const SPECIAL_LBL={noMgr:'담당 미배정',noPlan:'수금계획 미기재',follow:'팔로우업 도래',hasProv:'대손충당금 설정됨',mgrConflict:'담당자 값 충돌'};
 function viewList(){
   const rows=listRows();
   const years=[...new Set(E.map(r=>String(r.year)).filter(Boolean))].sort();
@@ -1050,6 +1056,7 @@ function openRow(ridv){
       +log.slice().reverse().map(x=>`<div style="display:flex;gap:8px;padding:5px 0;font-size:12.5px;border-bottom:1px dashed var(--line)"><span style="color:var(--muted);width:80px;flex-shrink:0">${esc(x.d)}</span><span style="flex:1;color:var(--ink)">${esc(x.t)}</span><span class="hint">${esc((x.by||'').split('@')[0])}</span></div>`).join('')+'</div>';
   }
   h+='<div class="editable-note">✏️ 아래 항목은 수정 가능합니다. 저장 시 원본과 별도로 보관되어, 엑셀 재업로드 후에도 유지됩니다.</div>';
+  if(r._mgrConflict)h+=`<div class="editable-note" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">⚠ 재무팀 최신 파일에는 담당자가 <b>${esc(r._mgrConflict)}</b>(으)로 되어 있어요. 지금 화면엔 사이트에서 입력한 값이 우선 표시 중입니다 — 재무팀 값이 맞다면 아래 담당자 칸을 그 값으로 고쳐서 다시 저장하세요.</div>`;
   h+=`<div class="fgrid" style="grid-template-columns:1fr 1fr">
     <div class="fld"><label>담당자</label><input id="ed-mgr" value="${esc(r.mgr||'')}" placeholder="예: 홍길동"></div>
     <div class="fld"><label>채권유형</label><select id="ed-type">${TYPE_ORDER.map(t=>`<option ${r.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
