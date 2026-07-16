@@ -227,6 +227,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
       <a data-v="wo"><span class="ico">🧾</span><span class="lbl">손실처리</span></a>
       <a data-v="trend"><span class="ico">📈</span><span class="lbl">주간 추이</span></a>
       <a data-v="report"><span class="ico">🖨️</span><span class="lbl">임원 보고</span></a>
+      <a data-v="brief"><span class="ico">🎤</span><span class="lbl">발표용</span></a>
       <a data-v="upload"><span class="ico">⬆️</span><span class="lbl">데이터 업로드</span></a>
     </nav>
   </header>
@@ -350,9 +351,9 @@ function applyEdits(){
     const c=Object.assign({},i);if(e.cls!==undefined&&e.cls!=='')c.cls=e.cls;if(e.mgmtOp!==undefined&&e.mgmtOp!=='')c.opinion=e.mgmtOp;if(e.cls||e.mgmtOp)c._edited=true;return c;});
   const h=document.getElementById('hdr-asof');if(h&&RAW.asOf)h.textContent='기준 '+RAW.asOf+' · '+(RAW.rows||[]).length+'건';
 }
-const VIEWS=['home','list','mgmt','wo','trend','report','upload'];
+const VIEWS=['home','list','mgmt','wo','trend','report','brief','upload'];
 const RESTRICTED_USER='hyerin0519@wontech.com';
-const RESTRICTED_VIEWS=['report','upload'];
+const RESTRICTED_VIEWS=['report','brief','upload'];
 function afterLoad(){
   document.getElementById('load').style.display='none';document.getElementById('app').style.display='block';
   const raw=(location.hash||'').replace(/^#/,'');const v=VIEWS.indexOf(raw)>=0?raw:'home';
@@ -398,12 +399,12 @@ function destroyCharts(){_charts.forEach(c=>{try{c.destroy();}catch(e){}});_char
 function render(){
   destroyCharts();
   const v=document.getElementById('view');
-  const T={home:['대시보드','국내 미수채권 현황 한눈에'],list:['채권 목록','전체 채권 상세 · 행 클릭 → 상세/편집'],mgmt:['관리대상','잔액 보유 채권 분류 관리 (집중관리·검토필요·관리제외)'],wo:['손실처리(대손)','회수 실익 없는 채권 선별 → 검토 → 품의서 출력'],trend:['주간 추이','주간 스냅샷 기반 미수잔액 흐름'],report:['임원 보고','보고 형식 · 우측 하단 PDF 저장 버튼으로 출력'],upload:['데이터 업로드','재무팀 주간 엑셀 → 자동 파싱·갱신']};
+  const T={home:['대시보드','국내 미수채권 현황 한눈에'],list:['채권 목록','전체 채권 상세 · 행 클릭 → 상세/편집'],mgmt:['관리대상','잔액 보유 채권 분류 관리 (집중관리·검토필요·관리제외)'],wo:['손실처리(대손)','회수 실익 없는 채권 선별 → 검토 → 품의서 출력'],trend:['주간 추이','주간 스냅샷 기반 미수잔액 흐름'],report:['임원 보고','보고 형식 · 우측 하단 PDF 저장 버튼으로 출력'],brief:['발표용 요약','회의 발표용 핵심 요약 · 나만 보임'],upload:['데이터 업로드','재무팀 주간 엑셀 → 자동 파싱·갱신']};
   document.getElementById('pt-h').textContent=T[curView][0];
   document.getElementById('pt-d').textContent=T[curView][1]+(RAW&&RAW.asOf?' · 기준일 '+RAW.asOf:'');
   document.getElementById('pt-a').innerHTML='';
   if(!RAW){v.innerHTML='<div class="card">데이터가 없습니다 (cons_cache <b>ar_kr</b>). 데이터 업로드 탭에서 엑셀을 올려주세요.</div>';return;}
-  v.innerHTML=curView==='home'?viewHome():curView==='list'?viewList():curView==='mgmt'?viewMgmt():curView==='wo'?viewWo():curView==='trend'?viewTrend():curView==='report'?viewReport():viewUpload();
+  v.innerHTML=curView==='home'?viewHome():curView==='list'?viewList():curView==='mgmt'?viewMgmt():curView==='wo'?viewWo():curView==='trend'?viewTrend():curView==='report'?viewReport():curView==='brief'?viewBrief():viewUpload();
   if(curView==='home')drawHomeCharts();
   if(curView==='trend')drawTrendChart();
 }
@@ -440,7 +441,7 @@ function viewHome(){
     {l:'총 채권 발생',v:eok(k.tot),s:E.length+'건 · 2020~2026',fn:`goListAll()`},
     {l:'수금 완료',v:eok(k.coll),s:'수금률 '+pct(k.collRate)+' (대손포함 '+pct(k.collRateB)+')',c:'var(--ok)'},
     {l:'잔여 미수금',v:eok(k.arSum),s:dl?('전주 대비 '+(dl.ar>=0?'+':'')+eok2(dl.ar)):'',c:'#b45309',go:'list'},
-    {l:'실질 관리필요',v:eok2(k.risk),s:'지연+장기체납 잔여위험',c:'var(--bad)',go:'mgmt'},
+    {l:'실질 관리필요',v:eok2(k.risk),s:'지연+장기체납 잔여위험 (정상채권 제외)',c:'var(--bad)',go:'mgmt'},
     {l:'대손충당금 설정',v:eok2(k.prov),s:'장기체납 대상 기설정',fn:`goListSpecial('hasProv')`}
   ];
   h+='<div class="grid kpis">'+kpiCards.map(c=>`<div class="kpi ${(c.go||c.fn)?'clk':''}" ${c.fn?`onclick="${c.fn}"`:c.go?`onclick="setView('${c.go}')"`:''}><div class="l">${c.l}</div><div class="v" ${c.c?`style="color:${c.c}"`:''}>${c.v}</div><div class="s">${c.s||''}</div></div>`).join('')+'</div>';
@@ -814,6 +815,32 @@ function viewReport(){
   return h;
 }
 
+// ═══ 발표용 요약(비공개) ═══
+function viewBrief(){
+  const k=kpis();
+  const cands=woCands();
+  const sum=a=>a.reduce((s,x)=>s+x.r.ar,0);
+  const addLoss=a=>a.reduce((s,x)=>s+Math.max(0,x.r.ar-x.r.prov),0);
+  const byTier=n=>cands.filter(x=>woTier(x.r).n===n);
+  const t1=byTier(1),t2=byTier(2),t3=byTier(3);
+  document.getElementById('pt-a').innerHTML='<button class="btn" onclick="window.print()"><i class="bi bi-printer"></i> 인쇄</button>';
+  let h='<div class="editable-note" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">🔒 이 화면은 본인 계정에만 보입니다. 회의 발표용으로 핵심만 간추린 요약이며, 세부 근거·수정은 <a onclick="setView(\'wo\')" style="color:inherit;text-decoration:underline;cursor:pointer">손실처리</a> 메뉴에서 확인하세요.</div>';
+  h+='<div class="kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px">';
+  h+=`<div class="kpi" style="flex:0 0 200px;min-width:0"><div class="l">총 채권 / 수금률</div><div class="v">${eok(k.tot)}</div><div class="s">수금률 ${pct(k.collRate)} · ${E.length}건</div></div>`;
+  h+=`<div class="kpi" style="flex:0 0 200px;min-width:0"><div class="l">잔여 미수금</div><div class="v" style="color:#b45309">${eok(k.arSum)}</div><div class="s">전체의 ${pct(k.tot?k.arSum/k.tot:0)}</div></div>`;
+  h+=`<div class="kpi" style="flex:0 0 200px;min-width:0"><div class="l">손실처리 후보</div><div class="v" style="color:#b91c1c">${cands.length}건</div><div class="s">예상손실 ${eok2(addLoss(cands))}</div></div>`;
+  h+='</div>';
+  h+='<div class="card"><div class="sec">손실처리 20건 — 3단계 우선순위</div>';
+  h+='<div class="kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px">';
+  h+=`<div class="kpi" style="flex:1 1 220px;min-width:0"><div class="l">🔴 추정손실급 — 최우선 처리</div><div class="v" style="color:#b91c1c">${t1.length}건</div><div class="s">미수잔액 ${eok2(sum(t1))} · 손실영향 ${eok2(addLoss(t1))}</div></div>`;
+  h+=`<div class="kpi" style="flex:1 1 220px;min-width:0"><div class="l">🟠 회수의문급 — 개별검토</div><div class="v" style="color:#b45309">${t2.length}건</div><div class="s">미수잔액 ${eok2(sum(t2))} · 손실영향 ${eok2(addLoss(t2))}</div></div>`;
+  h+=`<div class="kpi" style="flex:1 1 220px;min-width:0"><div class="l">🔵 요주의급 — 보류 권장</div><div class="v" style="color:#0369a1">${t3.length}건</div><div class="s">미수잔액 ${eok2(sum(t3))} · 상환 진행중</div></div>`;
+  h+='</div>';
+  h+='<div style="background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink);line-height:1.8">';
+  h+=`정리하면, <b>추정손실급 ${t1.length}건</b>은 충당금이 이미 100% 설정돼 확정해도 회계상 영향이 없어 바로 진행해도 무리 없어 보이고, <b>회수의문급 ${t2.length}건</b>은 재무팀 확인이 필요하며(특히 충당금 미설정 건), <b>요주의급 ${t3.length}건</b>은 최근 상환 이력이 있어 이번 확정 대상에서는 빼는 게 맞지 않을까 싶습니다 — 어떻게 진행하면 좋을지 의견 부탁드립니다.`;
+  h+='</div></div>';
+  return h;
+}
 // ═══ 데이터 업로드 ═══
 let _up=null;
 function viewUpload(){
