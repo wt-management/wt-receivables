@@ -1004,13 +1004,18 @@ function parseMgmtSheet(ws,name,latestRows){
     return mg.items.length?mg:null;
   }catch(e){return null;}
 }
+let _applying=false;
 async function applyUpload(){
-  if(!_up)return;
+  if(!_up||_applying)return;
   if(_up._warns&&_up._warns.length&&!confirm('경고가 있습니다:\n\n'+_up._warns.join('\n')+'\n\n그래도 적용할까요?'))return;
-  delete _up._warns;
-  const r=await _sb.from('cons_cache').upsert({key:'ar_kr',data:_up},{onConflict:'key'});
-  if(r.error){toast('저장 실패: '+r.error.message);return;}
-  RAW=_up;_up=null;applyEdits();toast('갱신 완료 ✓ 기준일 '+RAW.asOf);setView('home');
+  _applying=true;
+  try{
+    delete _up._warns;
+    const payload=_up;
+    const r=await _sb.from('cons_cache').upsert({key:'ar_kr',data:payload},{onConflict:'key'});
+    if(r.error){toast('저장 실패: '+r.error.message);return;}
+    RAW=payload;_up=null;applyEdits();toast('갱신 완료 ✓ 기준일 '+RAW.asOf);setView('home');
+  }finally{_applying=false;}
 }
 
 // ═══ 상세/편집 모달 ═══
