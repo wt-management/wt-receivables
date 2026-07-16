@@ -412,9 +412,7 @@ function viewHome(){
   const delay=(k.ta['지연채권']||{cnt:0,rows:[],ar:0});
   const noMgr=E.filter(isNoMgr),noPlan=E.filter(isNoPlan);
   const review=M.filter(i=>i.cls==='검토필요');
-  const due=E.filter(isFollowDue);
   const acts=[
-    {t:'📌 팔로우업 도래',n:due.length+'건 · '+eok2(due.reduce((s,r)=>s+r.ar,0)),d:due.length?'다음 조치일이 오늘이거나 지남 — 연락하세요':'예정된 조치 없음 (상세에서 다음 조치일 입력)',c:'#15803d',fn:`goListSpecial('follow')`},
     {t:'⏰ 지연채권 수금',n:delay.cnt+'건 · '+eok2(delay.ar),d:'Q3말 전액 수금 목표 — 담당자 접촉',c:'#b45309',fn:`goListType('지연채권')`},
     {t:'🧭 검토필요 분류 확정',n:review.length+'건 · '+eok2(review.reduce((s,i)=>s+i.ar,0)),d:'집중관리/관리제외 판단 필요',c:'#b91c1c',fn:`_mf.cls='검토필요';setView('mgmt')`},
     {t:'👤 담당 미배정',n:noMgr.length+'건 · '+eok2(noMgr.reduce((s,r)=>s+r.ar,0)),d:'수금 책임자 지정 필요',c:'#6d28d9',fn:`goListSpecial('noMgr')`},
