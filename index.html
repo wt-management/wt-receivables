@@ -351,18 +351,19 @@ function applyEdits(){
   const h=document.getElementById('hdr-asof');if(h&&RAW.asOf)h.textContent='기준 '+RAW.asOf+' · '+(RAW.rows||[]).length+'건';
 }
 const VIEWS=['home','list','mgmt','wo','trend','report','upload'];
-const REPORT_ONLY='hyerin0519@wontech.com';
+const RESTRICTED_USER='hyerin0519@wontech.com';
+const RESTRICTED_VIEWS=['report','upload'];
 function afterLoad(){
   document.getElementById('load').style.display='none';document.getElementById('app').style.display='block';
   const raw=(location.hash||'').replace(/^#/,'');const v=VIEWS.indexOf(raw)>=0?raw:'home';
   if(raw!==v){try{history.replaceState(null,'','#'+v);}catch(e){}}
   applyView(v);try{_wtRenderSwitcher();}catch(e){}
   document.querySelectorAll('#topnav a').forEach(a=>{a.onclick=()=>setView(a.dataset.v);});
-  const rtab=document.querySelector('#topnav a[data-v="report"]');if(rtab&&ME!==REPORT_ONLY)rtab.style.display='none';
+  if(ME!==RESTRICTED_USER)RESTRICTED_VIEWS.forEach(rv=>{const t=document.querySelector('#topnav a[data-v="'+rv+'"]');if(t)t.style.display='none';});
 }
 function setView(v){if(('#'+v)===location.hash){applyView(v);}else{location.hash='#'+v;}}
 window.addEventListener('hashchange',()=>{const v=(location.hash||'').replace(/^#/,'');if(VIEWS.indexOf(v)>=0)applyView(v);});
-function applyView(v){if(v==='report'&&ME!==REPORT_ONLY){v='home';try{history.replaceState(null,'','#home');}catch(e){}}curView=v;closeModal();
+function applyView(v){if(RESTRICTED_VIEWS.indexOf(v)>=0&&ME!==RESTRICTED_USER){v='home';try{history.replaceState(null,'','#home');}catch(e){}}curView=v;closeModal();
   document.querySelectorAll('#topnav a').forEach(a=>a.classList.toggle('active',a.dataset.v===v));
   render();}
 
