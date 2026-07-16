@@ -840,7 +840,7 @@ function parseWeeklySheet(ws){
     Object.keys(HMAP).forEach(h=>{const f=HMAP[h];if(cols[f]===undefined){o[f]=NUMF.has(f)?0:'';return;}
       const v=r[cols[f]];
       o[f]=(f==='saleDate'||f==='collDate')?xlDate(v):NUMF.has(f)?xlNum(v):xlStr(v);});
-    if(o.year)o.year=String(o.year).split('.')[0];
+    if(o.year)o.year=String(o.year).replace(/[^0-9.]/g,'').split('.')[0];
     rows.push(o);}
   return rows;
 }
