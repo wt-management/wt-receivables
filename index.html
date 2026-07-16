@@ -1030,8 +1030,8 @@ function openRow(ridv){
     +F('원화금액',fmt(r.amt)+'원')+F('수금금액',fmt(r.coll)+'원'+(r.collDate?' ('+r.collDate+')':''))
     +F('미수채권금액',fmt(r.ar)+'원')+F('대손처리',fmt(r.bad)+'원')
     +F('대손충당금',fmt(r.prov)+'원')+F('경과년수',r.elapsed)
-    +F('담당자',r.mgr)+F('거래처코드',r.code)
-    +F('사업자번호',r.bizno)+F('채권 특성',r.trait)
+    +F('거래처코드',r.code)+F('사업자번호',r.bizno)
+    +F('채권 특성',r.trait)
     +F('지급기일',r.dueNote)+F('발생년도',r.year)
     +'</div>';
   if(mi)h+='<div class="fgrid">'+F('관리 분류근거',mi.basis)+'</div>';
