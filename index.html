@@ -793,9 +793,15 @@ function viewReport(){
   }
   h+=`<div class="concl">➤ 총 미수금 ${eok(k.arSum)}원 중 실질 회수 위험액은 ${eok2(k.risk)}원(${pct(k.arSum?k.risk/k.arSum:0)})이며, 이 중 장기체납 잔여 ${eok2(ltRisk)}원은 충당금 기설정으로 추가 손실 위험 최소화</div>`;
   // 예상 질문 & 답변(Q&A)
-  const ya2=yearAgg(E);const y26=ya2['2026']||{amt:0,ar:0};
   h+='<h4>예상 질문 & 답변 대비</h4>';
-  const QA=[
+  h+='<div class="qa-grid">'+buildQA(k,delay,lt).map(([q,a])=>`<details class="qa" open><summary>${q}</summary><div class="a">${a}</div></details>`).join('')+'</div>';
+  h+='</div>';
+  return h;
+}
+// 임원보고·발표용 공용 예상질문 데이터
+function buildQA(k,delay,lt){
+  const ya2=yearAgg(E);const y26=ya2['2026']||{amt:0,ar:0};
+  return [
     ['실질 위험액이 '+((k.arSum-k.prov)/1e8).toFixed(1)+'억이라는 표와 '+eok2(k.risk)+'이라는 표가 다른데, 어느 게 맞습니까?',
      '두 수치 모두 맞습니다. '+((k.arSum-k.prov)/1e8).toFixed(1)+'억원은 잔여 미수금에서 대손충당금만 뺀 단순 계산값으로 정상 수금 진행 중인 채권까지 포함합니다. '+eok2(k.risk)+'원은 정상채권을 제외하고 실제 관리가 필요한 지연채권+장기체납 잔여위험만 합산한 수치로, 경영 관점의 실질 위험액입니다.'],
     ['지연채권 '+eok2(delay.ar)+'원, 9월까지 정말 다 걷을 수 있습니까?',
@@ -808,23 +814,25 @@ function viewReport(){
       return ['손실처리 후보 '+wc.length+'건 중 추정손실급/회수의문급/요주의급은 어떻게 나눈 겁니까?',
         '금융기관이 대출채권 건전성을 정상/요주의/고정/회수의문/추정손실 5단계로 나누는 방식을 참고해, 사건 발생 여부(폐업·관리제외)·충당금 커버율·최근 상환활동 3가지 데이터 기준으로 자동 분류했습니다. 추정손실급 '+t1+'건은 충당금이 이미 100% 설정돼 확정해도 추가 손실이 없고, 회수의문급 '+t2+'건은 충당금이 덜 쌓여 개별 확인이 필요하며, 요주의급 '+t3+'건은 최근 분납·입금 이력이 있어 회수 가능성이 남아있는 건입니다.'];})(),
     ['대시보드의 채권 연령(Aging) "3년 이상" 건수와 손실처리 후보 건수가 같아 보이는데 같은 건입니까?',
-     '아닙니다. 채권 연령은 단순히 매출일 기준 경과기간만으로 나눈 것이고, 손실처리 후보는 폐업·회수불가·충당금 설정 등 여러 조건을 함께 만족해야 들어갑니다. 우연히 건수가 비슷하게 나올 수는 있지만 서로 다른 기준의 별개 집계입니다.']
+     '아닙니다. 채권 연령은 단순히 매출일 기준 경과기간만으로 나눈 것이고, 손실처리 후보는 폐업·회수불가·충당금 설정 등 여러 조건을 함께 만족해야 들어갑니다. 우연히 건수가 비슷하게 나올 수는 있지만 서로 다른 기준의 별개 집계입니다.'],
+    ['왜 20건이 전부입니까, 더 있는 거 아닙니까?',
+     '잔액이 남아있는 채권 79건 전체를 다시 확인했고, 그중 폐업·장기체납·회수불가 신호가 있는 건이 이 20건이었습니다. 나머지 59건은 정상채권이거나 실제로 정상 수금·분납이 진행 중인 지연채권이라 후보에서 제외했습니다.'],
+    ['회수의문급 코키아병원 파주점은 왜 충당금이 0원입니까?',
+     '2024년 10월 매출로 비교적 최근에 폐업 처리된 건이라, 아직 충당금을 쌓을 시간이 없었던 것으로 보입니다. 확정 시 2,200만원이 그대로 새 손실로 잡히는 유일한 건이라 재무팀 확인이 필요합니다.']
   ];
-  h+='<div class="qa-grid">'+QA.map(([q,a])=>`<details class="qa" open><summary>${q}</summary><div class="a">${a}</div></details>`).join('')+'</div>';
-  h+='</div>';
-  return h;
 }
 
 // ═══ 발표용 요약(비공개) ═══
 function viewBrief(){
   const k=kpis();
+  const delay=(k.ta['지연채권']||{cnt:0,ar:0,prov:0}),lt=(k.ta['장기체납채권']||{cnt:0,ar:0,prov:0});
   const cands=woCands();
   const sum=a=>a.reduce((s,x)=>s+x.r.ar,0);
   const addLoss=a=>a.reduce((s,x)=>s+Math.max(0,x.r.ar-x.r.prov),0);
   const byTier=n=>cands.filter(x=>woTier(x.r).n===n);
   const t1=byTier(1),t2=byTier(2),t3=byTier(3);
   document.getElementById('pt-a').innerHTML='<button class="btn" onclick="window.print()"><i class="bi bi-printer"></i> 인쇄</button>';
-  let h='<div class="editable-note" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">🔒 이 화면은 본인 계정에만 보입니다. 회의 발표용으로 핵심만 간추린 요약이며, 세부 근거·수정은 <a onclick="setView(\'wo\')" style="color:inherit;text-decoration:underline;cursor:pointer">손실처리</a> 메뉴에서 확인하세요.</div>';
+  let h='<div class="editable-note" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">🔒 이 화면은 본인 계정에만 보입니다. 발표 준비용 상세 자료이며, 실시간 상태 변경은 <a onclick="setView(\'wo\')" style="color:inherit;text-decoration:underline;cursor:pointer">손실처리</a> 메뉴에서 하세요.</div>';
   h+='<div class="kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px">';
   h+=`<div class="kpi" style="flex:0 0 200px;min-width:0"><div class="l">총 채권 / 수금률</div><div class="v">${eok(k.tot)}</div><div class="s">수금률 ${pct(k.collRate)} · ${E.length}건</div></div>`;
   h+=`<div class="kpi" style="flex:0 0 200px;min-width:0"><div class="l">잔여 미수금</div><div class="v" style="color:#b45309">${eok(k.arSum)}</div><div class="s">전체의 ${pct(k.tot?k.arSum/k.tot:0)}</div></div>`;
@@ -839,6 +847,17 @@ function viewBrief(){
   h+='<div style="background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink);line-height:1.8">';
   h+=`정리하면, <b>추정손실급 ${t1.length}건</b>은 충당금이 이미 100% 설정돼 확정해도 회계상 영향이 없어 바로 진행해도 무리 없어 보이고, <b>회수의문급 ${t2.length}건</b>은 재무팀 확인이 필요하며(특히 충당금 미설정 건), <b>요주의급 ${t3.length}건</b>은 최근 상환 이력이 있어 이번 확정 대상에서는 빼는 게 맞지 않을까 싶습니다 — 어떻게 진행하면 좋을지 의견 부탁드립니다.`;
   h+='</div></div>';
+  h+='<div class="card"><div class="sec">20건 전체 명세 <span class="hint">등급순 정렬 · 행 클릭 → 상세</span></div>';
+  h+='<div class="tbl-scroll"><table class="dt"><thead><tr><th>#</th><th class="l">거래처</th><th class="l">등급</th><th>미수잔액</th><th>충당금</th><th>추가손실</th><th class="l">근거</th><th class="l">담당</th></tr></thead><tbody>';
+  h+=cands.map((x,i)=>{const r=x.r,tier=woTier(r);return `<tr class="clk" onclick="openRow('${r.rid}')">
+    <td>${i+1}</td><td class="l"><b>${esc(r.name)}</b></td><td class="l"><span class="chip" style="background:${tier.bg};color:${tier.c}">${tier.l}</span></td>
+    <td><b>${fmt(r.ar)}</b></td><td>${fmt(r.prov)}</td><td style="font-weight:700">${fmt(Math.max(0,r.ar-r.prov))}</td>
+    <td class="l" style="white-space:normal;min-width:200px">${x.rs.map(s=>`<span class="chip" style="background:#f1f5f9;color:#475569;margin:1px 2px 1px 0">${esc(s)}</span>`).join('')||'-'}</td>
+    <td class="l">${esc(r.mgr)}</td></tr>`;}).join('');
+  h+='</tbody></table></div></div>';
+  h+='<div class="card"><div class="sec">예상 질문 & 답변 대비</div>';
+  h+='<div class="qa-grid">'+buildQA(k,delay,lt).map(([q,a])=>`<details class="qa" open><summary>${q}</summary><div class="a">${a}</div></details>`).join('')+'</div>';
+  h+='</div>';
   return h;
 }
 // ═══ 데이터 업로드 ═══
