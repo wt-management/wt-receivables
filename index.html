@@ -346,7 +346,7 @@ async function loadData(){
 function applyEdits(){
   if(!RAW){E=[];M=[];return;}
   E=(RAW.rows||[]).map(r=>{const e=EDITS[r.rid];if(!e)return r;
-    const c=Object.assign({},r);['plan','payNote','opinion','type','nextDate','nextAct'].forEach(k=>{if(e[k]!==undefined&&e[k]!=='')c[k]=e[k];});if(e.log&&e.log.length)c._log=e.log;c._edited=true;return c;});
+    const c=Object.assign({},r);['mgr','plan','payNote','opinion','type','nextDate','nextAct'].forEach(k=>{if(e[k]!==undefined&&e[k]!=='')c[k]=e[k];});if(e.log&&e.log.length)c._log=e.log;c._edited=true;return c;});
   M=((RAW.mgmt&&RAW.mgmt.items)||[]).map(i=>{const e=EDITS[i.rid];if(!e)return i;
     const c=Object.assign({},i);if(e.cls!==undefined&&e.cls!=='')c.cls=e.cls;if(e.mgmtOp!==undefined&&e.mgmtOp!=='')c.opinion=e.mgmtOp;if(e.cls||e.mgmtOp)c._edited=true;return c;});
   const h=document.getElementById('hdr-asof');if(h&&RAW.asOf)h.textContent='기준 '+RAW.asOf+' · '+(RAW.rows||[]).length+'건';
@@ -1051,6 +1051,7 @@ function openRow(ridv){
   }
   h+='<div class="editable-note">✏️ 아래 항목은 수정 가능합니다. 저장 시 원본과 별도로 보관되어, 엑셀 재업로드 후에도 유지됩니다.</div>';
   h+=`<div class="fgrid" style="grid-template-columns:1fr 1fr">
+    <div class="fld"><label>담당자</label><input id="ed-mgr" value="${esc(r.mgr||'')}" placeholder="예: 홍길동"></div>
     <div class="fld"><label>채권유형</label><select id="ed-type">${TYPE_ORDER.map(t=>`<option ${r.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
     ${mi?`<div class="fld"><label>관리 분류</label><select id="ed-cls">${['집중관리','검토필요','관리제외'].map(c=>`<option ${mi.cls===c?'selected':''}>${c}</option>`).join('')}</select></div>`:''}
     <div class="fld"><label>다음 조치일 <span class="hint">(도래 시 대시보드 팔로우업에 표시)</span></label><input type="date" id="ed-nextDate" value="${esc(r.nextDate||'')}"></div>
@@ -1078,7 +1079,7 @@ async function saveEdit(ridv){
   const mi=((RAW.mgmt&&RAW.mgmt.items)||[]).find(i=>i.rid===ridv);
   const e=Object.assign({},EDITS[ridv]||{});
   const set=(k,v,orig)=>{if(v===undefined)return;if(v===String(orig==null?'':orig).trim()){delete e[k];}else{e[k]=v;}};
-  set('type',g('ed-type'),r.type);set('plan',g('ed-plan'),r.plan);set('payNote',g('ed-payNote'),r.payNote);set('opinion',g('ed-opinion'),r.opinion);
+  set('mgr',g('ed-mgr'),r.mgr);set('type',g('ed-type'),r.type);set('plan',g('ed-plan'),r.plan);set('payNote',g('ed-payNote'),r.payNote);set('opinion',g('ed-opinion'),r.opinion);
   set('nextDate',g('ed-nextDate'),'');set('nextAct',g('ed-nextAct'),'');
   if(mi){set('cls',g('ed-cls'),mi.cls);set('mgmtOp',g('ed-mgmtOp'),mi.opinion);}
   const logTxt=g('ed-log');
