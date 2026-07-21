@@ -821,10 +821,13 @@ function buildQA(k,delay,lt){
         '금융기관이 대출채권 건전성을 정상/요주의/고정/회수의문/추정손실 5단계로 나누는 방식을 참고해, 사건 발생 여부(폐업·관리제외)·충당금 커버율·최근 상환활동 3가지 데이터 기준으로 자동 분류했습니다. 추정손실급 '+t1+'건은 충당금이 이미 100% 설정돼 확정해도 추가 손실이 없고, 회수의문급 '+t2+'건은 충당금이 덜 쌓여 개별 확인이 필요하며, 요주의급 '+t3+'건은 최근 분납·입금 이력이 있어 회수 가능성이 남아있는 건입니다.'];})(),
     ['대시보드의 채권 연령(Aging) "3년 이상" 건수와 손실처리 후보 건수가 같아 보이는데 같은 건입니까?',
      '아닙니다. 채권 연령은 단순히 매출일 기준 경과기간만으로 나눈 것이고, 손실처리 후보는 폐업·회수불가·충당금 설정 등 여러 조건을 함께 만족해야 들어갑니다. 우연히 건수가 비슷하게 나올 수는 있지만 서로 다른 기준의 별개 집계입니다.'],
-    ['왜 20건이 전부입니까, 더 있는 거 아닙니까?',
-     '잔액이 남아있는 채권 79건 전체를 다시 확인했고, 그중 폐업·장기체납·회수불가 신호가 있는 건이 이 20건이었습니다. 나머지 59건은 정상채권이거나 실제로 정상 수금·분납이 진행 중인 지연채권이라 후보에서 제외했습니다.'],
-    ['회수의문급 코키아병원 파주점은 왜 충당금이 0원입니까?',
-     '2024년 10월 매출로 비교적 최근에 폐업 처리된 건이라, 아직 충당금을 쌓을 시간이 없었던 것으로 보입니다. 확정 시 2,200만원이 그대로 새 손실로 잡히는 유일한 건이라 재무팀 확인이 필요합니다.']
+    (function(){var arCnt=E.filter(function(r){return r.ar>0;}).length,wcN=woCands().length;
+      return ['왜 '+wcN+'건이 전부입니까, 더 있는 거 아닙니까?',
+       '잔액이 남아있는 채권 '+arCnt+'건 전체를 다시 확인했고, 그중 폐업·장기체납·회수불가 신호가 있는 건이 이 '+wcN+'건이었습니다. 나머지 '+(arCnt-wcN)+'건은 정상채권이거나 실제로 정상 수금·분납이 진행 중인 지연채권이라 후보에서 제외했습니다.'];})(),
+    (function(){var z=woCands().filter(function(x){return woTier(x.r).n===2&&(Number(x.r.prov)||0)===0;}).sort(function(a,b){return b.r.ar-a.r.ar;})[0];
+      if(!z) return ['회수의문급 중 충당금 미설정 건은 어떻게 처리합니까?','충당금이 아직 설정되지 않은 회수의문급 건은 확정 시 잔액이 그대로 새 손실로 잡히므로, 개별적으로 재무팀 확인 후 진행합니다.'];
+      return ['회수의문급 '+z.r.name+'은(는) 왜 충당금이 0원입니까?',
+       '비교적 최근에 폐업 처리된 건이라 아직 충당금을 쌓을 시간이 없었던 것으로 보입니다. 확정 시 '+eok2(z.r.ar)+'이 그대로 새 손실로 잡히는 건이라 재무팀 확인이 필요합니다.'];})()
   ];
 }
 
@@ -844,7 +847,7 @@ function viewBrief(){
   h+=`<div class="kpi" style="flex:0 0 200px;min-width:0"><div class="l">잔여 미수금</div><div class="v" style="color:#b45309">${eok(k.arSum)}</div><div class="s">전체의 ${pct(k.tot?k.arSum/k.tot:0)}</div></div>`;
   h+=`<div class="kpi" style="flex:0 0 200px;min-width:0"><div class="l">손실처리 후보</div><div class="v" style="color:#b91c1c">${cands.length}건</div><div class="s">예상손실 ${eok2(addLoss(cands))}</div></div>`;
   h+='</div>';
-  h+='<div class="card"><div class="sec">손실처리 20건 — 3단계 우선순위</div>';
+  h+='<div class="card"><div class="sec">손실처리 '+cands.length+'건 — 3단계 우선순위</div>';
   h+='<div class="kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px">';
   h+=`<div class="kpi" style="flex:1 1 220px;min-width:0"><div class="l">🔴 추정손실급 — 최우선 처리</div><div class="v" style="color:#b91c1c">${t1.length}건</div><div class="s">미수잔액 ${eok2(sum(t1))} · 손실영향 ${eok2(addLoss(t1))}</div></div>`;
   h+=`<div class="kpi" style="flex:1 1 220px;min-width:0"><div class="l">🟠 회수의문급 — 개별검토</div><div class="v" style="color:#b45309">${t2.length}건</div><div class="s">미수잔액 ${eok2(sum(t2))} · 손실영향 ${eok2(addLoss(t2))}</div></div>`;
@@ -853,7 +856,7 @@ function viewBrief(){
   h+='<div style="background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink);line-height:1.8">';
   h+=`정리하면, <b>추정손실급 ${t1.length}건</b>은 충당금이 이미 100% 설정돼 확정해도 회계상 영향이 없어 바로 진행해도 무리 없어 보이고, <b>회수의문급 ${t2.length}건</b>은 재무팀 확인이 필요하며(특히 충당금 미설정 건), <b>요주의급 ${t3.length}건</b>은 최근 상환 이력이 있어 이번 확정 대상에서는 빼는 게 맞지 않을까 싶습니다 — 어떻게 진행하면 좋을지 의견 부탁드립니다.`;
   h+='</div></div>';
-  h+='<div class="card"><div class="sec">20건 전체 명세 <span class="hint">등급순 정렬 · 행 클릭 → 상세</span></div>';
+  h+='<div class="card"><div class="sec">'+cands.length+'건 전체 명세 <span class="hint">등급순 정렬 · 행 클릭 → 상세</span></div>';
   h+='<div class="tbl-scroll"><table class="dt"><thead><tr><th>#</th><th class="l">거래처</th><th class="l">등급</th><th>미수잔액</th><th>충당금</th><th>추가손실</th><th class="l">근거</th><th class="l">담당</th></tr></thead><tbody>';
   h+=cands.map((x,i)=>{const r=x.r,tier=woTier(r);return `<tr class="clk" onclick="openRow('${r.rid}')">
     <td>${i+1}</td><td class="l"><b>${esc(r.name)}</b></td><td class="l"><span class="chip" style="background:${tier.bg};color:${tier.c}">${tier.l}</span></td>
