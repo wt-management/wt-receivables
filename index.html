@@ -418,7 +418,7 @@ function applyView(v){if(RESTRICTED_VIEWS.indexOf(v)>=0&&ME!==RESTRICTED_USER&&M
   render();}
 
 // ── 집계 ──
-function typeAgg(rows){const m={};rows.forEach(r=>{const t=r.type||'미분류';m[t]=m[t]||{cnt:0,ar:0,prov:0,rows:[]};m[t].cnt++;m[t].ar+=r.ar;m[t].prov+=r.prov;m[t].rows.push(r);});return m;}
+function typeAgg(rows){const m={};rows.forEach(r=>{const t=(r.type&&TYPE_ORDER.indexOf(r.type)>=0)?r.type:'미분류';m[t]=m[t]||{cnt:0,ar:0,prov:0,rows:[]};m[t].cnt++;m[t].ar+=r.ar;m[t].prov+=r.prov;m[t].rows.push(r);});return m;}
 function yearAgg(rows){const m={};rows.forEach(r=>{const y=r.year||'?';m[y]=m[y]||{cnt:0,amt:0,ar:0,prov:0};m[y].cnt++;m[y].amt+=r.amt;m[y].ar+=r.ar;m[y].prov+=r.prov;});return m;}
 function kpis(){
   const tot=E.reduce((s,r)=>s+r.amt,0),coll=E.reduce((s,r)=>s+r.coll,0),bad=E.reduce((s,r)=>s+r.bad,0);
