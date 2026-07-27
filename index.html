@@ -1055,7 +1055,7 @@ function parseMgmtSheet(ws,name,latestRows){
       let mo=latestRows.find(o=>String(Math.trunc(xlNum(o.no)||0))===String(Math.trunc(xlNum(it.no)||0))&&o.name===it.name);
       if(!mo)mo=latestRows.find(o=>o.name===it.name&&Math.abs(o.ar-it.ar)<1);
       if(!mo)mo=latestRows.find(o=>nn(o.name)===nn(it.name)&&Math.abs(o.ar-it.ar)<1);
-      it.rid=mo?mo.rid:'';
+      it.rid=mo?mo.rid:('_um|'+nn(it.name)+'|'+Math.trunc(it.ar||0));
       mg.items.push(it);}
     return mg.items.length?mg:null;
   }catch(e){return null;}
@@ -1076,7 +1076,7 @@ async function applyUpload(){
 
 // ═══ 상세/편집 모달 ═══
 function openRow(ridv){
-  const r=E.find(x=>x.rid===ridv);if(!r){toast('상세 데이터를 찾을 수 없습니다');return;}
+  const r=E.find(x=>x.rid===ridv);if(!r){toast(String(ridv).indexOf('_um|')===0?'채권 원장과 매칭되지 않은 항목이라 상세가 없습니다':'상세 데이터를 찾을 수 없습니다');return;}
   const mi=M.find(i=>i.rid===ridv);
   const ed=EDITS[ridv]||{};
   const F=(l,v)=>`<div class="fld"><label>${l}</label><div class="fv">${esc(v==null||v===''?'-':v)}</div></div>`;
