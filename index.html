@@ -659,29 +659,19 @@ function woReasons(r){
   else if(yrs>=3&&r.type==='장기체납채권')rs.push(yrs+'년 경과');
   return rs;
 }
-// 텍스트 안의 "24.07.11" · "2024" 같은 연도 흔적을 찾아, 가장 최근 연도가
-// 기준일(RAW.asOf) 기준 1년 이내인지 판정. 연도 흔적이 아예 없으면 null(불명확).
-function paymentRecency(txt){
-  if(/최근\s*(입금|수금|상환|분납)/.test(txt))return true;
-  const years=[];
-  (String(txt).match(/\b20\d{2}\b/g)||[]).forEach(y=>years.push(parseInt(y)));
-  (String(txt).match(/\b(\d{2})\.\d{1,2}\.\d{1,2}\b/g)||[]).forEach(s=>years.push(2000+parseInt(s.split('.')[0])));
-  if(!years.length)return null;
-  const maxY=Math.max(...years);
-  const curY=new Date((RAW&&RAW.asOf)||today()).getFullYear();
-  return maxY>=curY-1;
-}
 // 우선순위 등급: 금융기관 자산건전성 5단계 분류(정상/요주의/고정/회수의문/추정손실) 관행을 차용해
 // "사건 발생여부 + 충당금 커버율 + 최근 상환활동" 3요소로 손실처리 후보를 3등급으로 재분류.
-// 상환활동은 "입금/분납" 단어뿐 아니라 그 기록의 연도까지 확인해, 오래된 기록은 요주의급으로
-// 자동 편입시키지 않고 대신 경고 표시만 남긴다(예: 2년 전 입금기록이 "최근"으로 오판되는 것 방지).
+// "최근 상환활동"은 사람이 적은 메모("최근입금 확인" 등)가 아니라, 시스템에 기록된 실제
+// 수금일(collDate)이 기준일로부터 1년 이내인지로 판단한다 — 메모는 몇 년째 방치돼도
+// "최근"이라는 문구가 그대로 남아있을 수 있어 신뢰할 수 없다(실제 사례로 확인됨).
 function woTier(r){
   const mi=M.find(i=>i.rid===r.rid);
   const txt=((mi&&mi.basis)||'')+' '+(r.plan||'')+' '+(r.payNote||'');
   const hasPayKeyword=/분납|입금|완제/.test(txt);
-  const recency=hasPayKeyword?paymentRecency(txt):null;
-  if(hasPayKeyword&&recency===true)return{n:3,l:'요주의급',s:'활성 상환중·보류 권장',c:'#0369a1',bg:'#e0f2fe'};
-  const warn=!hasPayKeyword?'':recency===false?'⚠ 입금기록이 오래됨(1년+ 경과) — 최신 상환여부 재확인 필요':'⚠ 입금기록은 있으나 연도 불명확 — 재확인 필요';
+  const collAgeDays=r.collDate?(new Date((RAW&&RAW.asOf)||today())-new Date(r.collDate))/86400000:null;
+  const recentColl=collAgeDays!=null&&collAgeDays<=365;
+  if(hasPayKeyword&&recentColl)return{n:3,l:'요주의급',s:'활성 상환중·보류 권장',c:'#0369a1',bg:'#e0f2fe'};
+  const warn=!hasPayKeyword?'':r.collDate?`⚠ 마지막 수금일(${r.collDate})이 1년 이상 지남 — 실제 상환여부 재확인 필요`:'⚠ 입금기록 메모는 있으나 수금일 데이터 없음 — 재확인 필요';
   const hasEvent=/폐업/.test(r.name)||r.trait==='폐업'||r.trait==='도주'||(mi&&mi.cls==='관리제외');
   const fullProv=r.ar>0&&r.prov>=r.ar*0.999;
   if(hasEvent&&fullProv)return{n:1,l:'추정손실급',s:'최우선 손실처리',c:'#b91c1c',bg:'#fee2e2',warn};
