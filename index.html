@@ -397,8 +397,13 @@ function applyEdits(){
     const c=Object.assign({},r);['mgr','plan','payNote','opinion','type','nextDate','nextAct'].forEach(k=>{if(e[k]!==undefined&&e[k]!=='')c[k]=e[k];});if(e.log&&e.log.length)c._log=e.log;c._edited=true;
     if(e.mgr!==undefined&&e.mgr!==''&&r.mgr&&r.mgr!==e.mgr)c._mgrConflict=r.mgr;
     return c;});
-  M=((RAW.mgmt&&RAW.mgmt.items)||[]).map(i=>{const e=EDITS[i.rid];if(!e)return i;
-    const c=Object.assign({},i);if(e.cls!==undefined&&e.cls!=='')c.cls=e.cls;if(e.mgmtOp!==undefined&&e.mgmtOp!=='')c.opinion=e.mgmtOp;if(e.cls||e.mgmtOp)c._edited=true;return c;});
+  M=((RAW.mgmt&&RAW.mgmt.items)||[]).map(i=>{
+    const e=EDITS[i.rid];
+    const c=Object.assign({},i);
+    if(e){if(e.cls!==undefined&&e.cls!=='')c.cls=e.cls;if(e.mgmtOp!==undefined&&e.mgmtOp!=='')c.opinion=e.mgmtOp;if(e.cls||e.mgmtOp)c._edited=true;}
+    const er=i.rid?E.find(x=>x.rid===i.rid):null;
+    if(er){c.mgr=er.mgr;if(er.year)c.year=er.year;if(er.elapsed)c.elapsed=er.elapsed;}
+    return c;});
   const h=document.getElementById('hdr-asof');if(h&&RAW.asOf)h.textContent='기준 '+RAW.asOf+' · '+(RAW.rows||[]).length+'건';
 }
 const VIEWS=['home','list','mgmt','wo','trend','report','brief','upload'];
@@ -633,7 +638,7 @@ function viewMgmt(){
   h+=items.map((i,n)=>`<tr class="clk" onclick="openRow('${i.rid}')"><td>${n+1}</td><td class="l"><b>${esc(i.name)}</b>${i._edited?' <span class="chip" style="background:#ecfdf5;color:#047857">수정</span>':''}</td><td class="l">${esc(i.year)}</td><td class="l hint">${esc(i.elapsed)}</td><td><b>${fmt(i.ar)}</b></td><td class="l">${esc(i.mgr)}</td><td class="l">${typeChip(i.state)}</td><td class="l">${clsChip(i.cls)}</td><td class="l memo" title="${esc(i.basis)}">${esc(i.basis)}</td><td class="l memo" title="${esc(i.opinion)}">${esc(i.opinion)}</td></tr>`).join('')
     ||'<tr><td colspan="10" style="text-align:center;padding:26px;color:var(--muted)">해당 없음</td></tr>';
   h+='</tbody></table></div>';
-  h+=`<div class="hint" style="margin-top:8px">분류 기준: 관리제외=대손·매출취소 처리 예정(실익 없음) · 집중관리=수금 실행 대상 · 검토필요=분류 판단 필요 (작성 ${(RAW.mgmt&&RAW.mgmt.asOf)||'-'} · 원본 기준일 ${(RAW.mgmt&&RAW.mgmt.base)||'-'})</div>`;
+  h+=`<div class="hint" style="margin-top:8px">분류 기준: 관리제외=대손·매출취소 처리 예정(실익 없음) · 집중관리=수금 실행 대상 · 검토필요=분류 판단 필요 · 담당자·경과는 항상 최신 데이터 반영, 분류·근거·의견은 관리대상 시트 작성 시점 기준(작성 ${(RAW.mgmt&&RAW.mgmt.asOf)||'-'} · 원본 기준일 ${(RAW.mgmt&&RAW.mgmt.base)||'-'})</div>`;
   return h;
 }
 
