@@ -659,22 +659,25 @@ function woReasons(r){
   else if(yrs>=3&&r.type==='장기체납채권')rs.push(yrs+'년 경과');
   return rs;
 }
-// 우선순위 등급: 금융기관 자산건전성 5단계 분류(정상/요주의/고정/회수의문/추정손실) 관행을 차용해
-// "사건 발생여부 + 충당금 커버율 + 최근 상환활동" 3요소로 손실처리 후보를 3등급으로 재분류.
-// "최근 상환활동"은 사람이 적은 메모("최근입금 확인" 등)가 아니라, 시스템에 기록된 실제
-// 수금일(collDate)이 기준일로부터 1년 이내인지로 판단한다 — 메모는 몇 년째 방치돼도
-// "최근"이라는 문구가 그대로 남아있을 수 있어 신뢰할 수 없다(실제 사례로 확인됨).
+// 우선순위 등급: "사건 발생여부 + 충당금 커버율" 2요소로 손실처리 후보를 2등급으로 분류.
+// (예전엔 "최근 상환활동"으로 별도 요주의급을 뒀으나, 관리대상 메모의 "최근입금 확인" 문구가
+// 실제로는 몇 년째 방치된 경우가 확인되어 폐지. 대신 실제 수금일(collDate)이 오래됐거나
+// 불명확하면 경고 배지로만 표시해 재확인을 유도한다.)
 function woTier(r){
   const mi=M.find(i=>i.rid===r.rid);
   const txt=((mi&&mi.basis)||'')+' '+(r.plan||'')+' '+(r.payNote||'');
   const hasPayKeyword=/분납|입금|완제/.test(txt);
   const collAgeDays=r.collDate?(new Date((RAW&&RAW.asOf)||today())-new Date(r.collDate))/86400000:null;
   const recentColl=collAgeDays!=null&&collAgeDays<=365;
-  if(hasPayKeyword&&recentColl)return{n:3,l:'요주의급',s:'활성 상환중·보류 권장',c:'#0369a1',bg:'#e0f2fe'};
-  const warn=!hasPayKeyword?'':r.collDate?`⚠ 마지막 수금일(${r.collDate})이 1년 이상 지남 — 실제 상환여부 재확인 필요`:'⚠ 입금기록 메모는 있으나 수금일 데이터 없음 — 재확인 필요';
+  let warn='';
+  if(hasPayKeyword){
+    warn=recentColl?`⚠ 최근 수금 있음(${r.collDate}) — 상환 진행 중일 수 있어 확정 전 재확인 권장`
+      :r.collDate?`⚠ 마지막 수금일(${r.collDate})이 1년 이상 지남 — 실제 상환여부 재확인 필요`
+      :'⚠ 입금기록 메모는 있으나 수금일 데이터 없음 — 재확인 필요';
+  }
   const hasEvent=/폐업/.test(r.name)||r.trait==='폐업'||r.trait==='도주'||(mi&&mi.cls==='관리제외');
   const fullProv=r.ar>0&&r.prov>=r.ar*0.999;
-  if(hasEvent&&fullProv)return{n:1,l:'추정손실급',s:'최우선 손실처리',c:'#b91c1c',bg:'#fee2e2',warn};
+  if(hasEvent&&fullProv)return{n:1,l:'충당완료급',s:'최우선 처리',c:'#b91c1c',bg:'#fee2e2',warn};
   return{n:2,l:'회수의문급',s:'개별검토 필요',c:'#b45309',bg:'#fef3c7',warn};
 }
 function woCands(){
@@ -700,16 +703,15 @@ function viewWo(){
   const sum=a=>a.reduce((s,x)=>s+x.r.ar,0);
   const addLoss=a=>a.reduce((s,x)=>s+Math.max(0,x.r.ar-x.r.prov),0);
   const byTier=n=>cands.filter(x=>woTier(x.r).n===n);
-  const t1=byTier(1),t2=byTier(2),t3=byTier(3);
+  const t1=byTier(1),t2=byTier(2);
   const undone=cands.filter(x=>!woOf(x.r));
   document.getElementById('pt-a').innerHTML='<button class="btn" onclick="woCsv()"><i class="bi bi-download"></i> CSV</button> <button class="btn pri" onclick="_woMode=\'doc\';render()"><i class="bi bi-file-earmark-text"></i> 품의서 생성</button>';
   if(_woMode==='doc')return viewWoDoc(cf);
-  let h='<div class="editable-note" style="background:#f0f9ff;border-color:#bae6fd;color:#075985">회의 후속: 회수 실익이 없는 채권을 선별해 <b>대손처리 품의 리스트</b>를 확정합니다. 근거는 원본 데이터(폐업·회수불가·충당금·관리분류)에서 자동 수집되며, 최종 판단(확정/소송/보류/제외)만 지정하면 품의서가 만들어집니다.<br>우선순위 등급(추정손실급/회수의문급/요주의급)은 금융기관 자산건전성 분류 관행을 참고해 사건발생여부·충당금커버율·최근상환활동으로 매긴 참고값입니다.</div>';
+  let h='<div class="editable-note" style="background:#f0f9ff;border-color:#bae6fd;color:#075985">회의 후속: 회수 실익이 없는 채권을 선별해 <b>대손처리 품의 리스트</b>를 확정합니다. 근거는 원본 데이터(폐업·회수불가·충당금·관리분류)에서 자동 수집되며, 최종 판단(확정/소송/보류/제외)만 지정하면 품의서가 만들어집니다.<br>우선순위 등급(충당완료급/회수의문급)은 사건발생여부·충당금커버율로 매긴 참고값이며, 입금기록이 있는 건은 별도 ⚠ 재확인 배지로 표시됩니다.</div>';
   h+='<div class="kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px">';
   h+=`<div class="kpi clk" style="flex:0 0 190px;min-width:0;${_woF===''?'outline:2px solid #64748b':''}" onclick="_woF='';render()"><div class="l">후보 전체</div><div class="v">${cands.length}건</div><div class="s">예상손실 ${eok2(addLoss(cands))} · 미검토 ${undone.length}건</div></div>`;
-  h+=`<div class="kpi clk" style="flex:0 0 190px;min-width:0;${_woF===1?'outline:2px solid #b91c1c':''}" onclick="_woF=1;render()"><div class="l">🔴 추정손실급</div><div class="v" style="color:#b91c1c">${t1.length}건</div><div class="s">미수잔액 ${eok2(sum(t1))} · 손실영향 ${eok2(addLoss(t1))}</div></div>`;
+  h+=`<div class="kpi clk" style="flex:0 0 190px;min-width:0;${_woF===1?'outline:2px solid #b91c1c':''}" onclick="_woF=1;render()"><div class="l">🔴 충당완료급</div><div class="v" style="color:#b91c1c">${t1.length}건</div><div class="s">미수잔액 ${eok2(sum(t1))} · 손실영향 ${eok2(addLoss(t1))}</div></div>`;
   h+=`<div class="kpi clk" style="flex:0 0 190px;min-width:0;${_woF===2?'outline:2px solid #b45309':''}" onclick="_woF=2;render()"><div class="l">🟠 회수의문급</div><div class="v" style="color:#b45309">${t2.length}건</div><div class="s">미수잔액 ${eok2(sum(t2))} · 손실영향 ${eok2(addLoss(t2))}</div></div>`;
-  h+=`<div class="kpi clk" style="flex:0 0 190px;min-width:0;${_woF===3?'outline:2px solid #0369a1':''}" onclick="_woF=3;render()"><div class="l">🔵 요주의급</div><div class="v" style="color:#0369a1">${t3.length}건</div><div class="s">미수잔액 ${eok2(sum(t3))} · 보류 권장</div></div>`;
   h+='</div>';
   const rows=_woF===''?cands:cands.filter(x=>woTier(x.r).n===_woF);
   const opts=st=>`<option value="">미검토</option>`+Object.keys(WO_ST).map(k=>`<option value="${k}" ${st===k?'selected':''}>${WO_ST[k].l}</option>`).join('');
@@ -747,8 +749,8 @@ function viewWoDoc(cf){
 }
 function woCsv(){
   const cands=woCands();
-  const head=['상태','우선순위등급','거래처명','사업자번호','매출일','년도','미수잔액','충당금','추가손실','근거','담당자','채권유형','검토자','검토일'];
-  const body=cands.map(x=>{const r=x.r,w=woOf(r);return [w?WO_ST[w.st].l:'미검토',woTier(r).l,r.name,r.bizno,r.saleDate,r.year,r.ar,r.prov,Math.max(0,r.ar-r.prov),x.rs.join(' · '),r.mgr,r.type,w?w._by:'',w?w._at:''];});
+  const head=['상태','우선순위등급','재확인필요','거래처명','사업자번호','매출일','년도','미수잔액','충당금','추가손실','근거','담당자','채권유형','검토자','검토일'];
+  const body=cands.map(x=>{const r=x.r,w=woOf(r),tier=woTier(r);return [w?WO_ST[w.st].l:'미검토',tier.l,tier.warn||'',r.name,r.bizno,r.saleDate,r.year,r.ar,r.prov,Math.max(0,r.ar-r.prov),x.rs.join(' · '),r.mgr,r.type,w?w._by:'',w?w._at:''];});
   const csv='﻿'+[head].concat(body).map(a=>a.map(x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const bl=new Blob([csv],{type:'text/csv'});const u=URL.createObjectURL(bl);
   const a=document.createElement('a');a.href=u;a.download='손실처리검토_'+(RAW.asOf||today())+'.csv';a.click();URL.revokeObjectURL(u);
@@ -875,9 +877,9 @@ function buildQA(k,delay,lt){
      '폐업·연락 불가 거래처가 대부분으로 법적 절차(소송 회수 또는 대손 확정)가 필요해 법무팀과 협의 중입니다. 이미 '+pct(lt.ar?lt.prov/lt.ar:0)+'는 충당금으로 설정해 재무적 영향은 제한적입니다.'],
     ['2026년 미수율('+pct(y26.amt?y26.ar/y26.amt:0)+')이 다른 해보다 높아 보이는데 문제 없습니까?',
      '2026년은 당해 매출이라 아직 결제 주기가 남아있는 리스·카드 결제 건이 많기 때문입니다. 실제 부실이 아니라 정상적인 수금 사이클상의 미수율입니다.'],
-    (function(){const wc=woCands();const t1=wc.filter(x=>woTier(x.r).n===1).length,t2=wc.filter(x=>woTier(x.r).n===2).length,t3=wc.filter(x=>woTier(x.r).n===3).length;
-      return ['손실처리 후보 '+wc.length+'건 중 추정손실급/회수의문급/요주의급은 어떻게 나눈 겁니까?',
-        '금융기관이 대출채권 건전성을 정상/요주의/고정/회수의문/추정손실 5단계로 나누는 방식을 참고해, 사건 발생 여부(폐업·관리제외)·충당금 커버율·최근 상환활동 3가지 데이터 기준으로 자동 분류했습니다. 추정손실급 '+t1+'건은 충당금이 이미 100% 설정돼 확정해도 추가 손실이 없고, 회수의문급 '+t2+'건은 충당금이 덜 쌓여 개별 확인이 필요하며, 요주의급 '+t3+'건은 최근 분납·입금 이력이 있어 회수 가능성이 남아있는 건입니다.'];})(),
+    (function(){const wc=woCands();const t1=wc.filter(x=>woTier(x.r).n===1).length,t2=wc.filter(x=>woTier(x.r).n===2).length,warned=wc.filter(x=>woTier(x.r).warn).length;
+      return ['손실처리 후보 '+wc.length+'건 중 충당완료급/회수의문급은 어떻게 나눈 겁니까?',
+        '사건 발생 여부(폐업·관리제외)와 충당금 커버율 2가지 데이터 기준으로 자동 분류했습니다. 충당완료급 '+t1+'건은 충당금이 이미 100% 설정돼 확정해도 추가 손실이 없는 건이고, 회수의문급 '+t2+'건은 충당금이 덜 쌓여 있어 확정 시 실제 손실이 발생하니 개별 확인이 필요한 건입니다. 이 중 '+warned+'건은 입금·분납 기록이 있어 별도 ⚠ 재확인 배지를 붙여뒀는데, 실제 수금일을 확인해보니 다들 1년 넘게 지난 옛 기록이라 등급 자체는 사건·충당금 기준을 따르고 배지로만 주의를 주는 방식으로 바꿨습니다.'];})(),
     ['대시보드의 채권 연령(Aging) "3년 이상" 건수와 손실처리 후보 건수가 같아 보이는데 같은 건입니까?',
      '아닙니다. 채권 연령은 단순히 매출일 기준 경과기간만으로 나눈 것이고, 손실처리 후보는 폐업·회수불가·충당금 설정 등 여러 조건을 함께 만족해야 들어갑니다. 우연히 건수가 비슷하게 나올 수는 있지만 서로 다른 기준의 별개 집계입니다.'],
     (function(){var arCnt=E.filter(function(r){return r.ar>0;}).length,wcN=woCands().length;
@@ -898,7 +900,8 @@ function viewBrief(){
   const sum=a=>a.reduce((s,x)=>s+x.r.ar,0);
   const addLoss=a=>a.reduce((s,x)=>s+Math.max(0,x.r.ar-x.r.prov),0);
   const byTier=n=>cands.filter(x=>woTier(x.r).n===n);
-  const t1=byTier(1),t2=byTier(2),t3=byTier(3);
+  const t1=byTier(1),t2=byTier(2);
+  const warned=cands.filter(x=>woTier(x.r).warn);
   document.getElementById('pt-a').innerHTML='<button class="btn" onclick="window.print()"><i class="bi bi-printer"></i> 인쇄</button>';
   let h='<div class="editable-note" style="background:#fef2f2;border-color:#fecaca;color:#991b1b">🔒 이 화면은 본인 계정에만 보입니다. 발표 준비용 상세 자료이며, 실시간 상태 변경은 <a onclick="setView(\'wo\')" style="color:inherit;text-decoration:underline;cursor:pointer">손실처리</a> 메뉴에서 하세요.</div>';
   h+='<div class="kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px">';
@@ -906,14 +909,15 @@ function viewBrief(){
   h+=`<div class="kpi" style="flex:0 0 200px;min-width:0"><div class="l">잔여 미수금</div><div class="v" style="color:#b45309">${eok(k.arSum)}</div><div class="s">전체의 ${pct(k.tot?k.arSum/k.tot:0)}</div></div>`;
   h+=`<div class="kpi" style="flex:0 0 200px;min-width:0"><div class="l">손실처리 후보</div><div class="v" style="color:#b91c1c">${cands.length}건</div><div class="s">예상손실 ${eok2(addLoss(cands))}</div></div>`;
   h+='</div>';
-  h+='<div class="card"><div class="sec">손실처리 '+cands.length+'건 — 3단계 우선순위</div>';
+  h+='<div class="card"><div class="sec">손실처리 '+cands.length+'건 — 2단계 우선순위</div>';
   h+='<div class="kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px">';
-  h+=`<div class="kpi" style="flex:1 1 220px;min-width:0"><div class="l">🔴 추정손실급 — 최우선 처리</div><div class="v" style="color:#b91c1c">${t1.length}건</div><div class="s">미수잔액 ${eok2(sum(t1))} · 손실영향 ${eok2(addLoss(t1))}</div></div>`;
+  h+=`<div class="kpi" style="flex:1 1 220px;min-width:0"><div class="l">🔴 충당완료급 — 최우선 처리</div><div class="v" style="color:#b91c1c">${t1.length}건</div><div class="s">미수잔액 ${eok2(sum(t1))} · 손실영향 ${eok2(addLoss(t1))}</div></div>`;
   h+=`<div class="kpi" style="flex:1 1 220px;min-width:0"><div class="l">🟠 회수의문급 — 개별검토</div><div class="v" style="color:#b45309">${t2.length}건</div><div class="s">미수잔액 ${eok2(sum(t2))} · 손실영향 ${eok2(addLoss(t2))}</div></div>`;
-  h+=`<div class="kpi" style="flex:1 1 220px;min-width:0"><div class="l">🔵 요주의급 — 보류 권장</div><div class="v" style="color:#0369a1">${t3.length}건</div><div class="s">미수잔액 ${eok2(sum(t3))} · 상환 진행중</div></div>`;
   h+='</div>';
   h+='<div style="background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink);line-height:1.8">';
-  h+=`정리하면, <b>추정손실급 ${t1.length}건</b>은 충당금이 이미 100% 설정돼 확정해도 회계상 영향이 없어 바로 진행해도 무리 없어 보이고, <b>회수의문급 ${t2.length}건</b>은 재무팀 확인이 필요하며(특히 충당금 미설정 건), <b>요주의급 ${t3.length}건</b>은 최근 상환 이력이 있어 이번 확정 대상에서는 빼는 게 맞지 않을까 싶습니다 — 어떻게 진행하면 좋을지 의견 부탁드립니다.`;
+  h+=`정리하면, <b>충당완료급 ${t1.length}건</b>은 충당금이 이미 100% 설정돼 확정해도 회계상 영향이 없어 바로 진행해도 무리 없어 보이고, <b>회수의문급 ${t2.length}건</b>은 충당금이 덜 쌓여 있어 재무팀 확인이 필요합니다.`;
+  if(warned.length)h+=` 이 중 <b>${warned.length}건</b>은 과거 입금·분납 기록이 있으나 실제 수금일을 확인해보니 대부분 1년 이상 지난 옛 기록이라, 확정 전 담당자 재확인을 권장드립니다.`;
+  h+=` 어떻게 진행하면 좋을지 의견 부탁드립니다.`;
   h+='</div></div>';
   h+='<div class="card"><div class="sec">'+cands.length+'건 전체 명세 <span class="hint">등급순 정렬 · 행 클릭 → 상세</span></div>';
   h+='<div class="tbl-scroll"><table class="dt"><thead><tr><th>#</th><th class="l">거래처</th><th class="l">적요</th><th class="l">등급</th><th>미수잔액</th><th>충당금</th><th>추가손실</th><th class="l">근거</th><th class="l">담당</th></tr></thead><tbody>';
