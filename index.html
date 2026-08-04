@@ -659,16 +659,33 @@ function woReasons(r){
   else if(yrs>=3&&r.type==='장기체납채권')rs.push(yrs+'년 경과');
   return rs;
 }
+// 텍스트 안의 "24.07.11" · "2024" 같은 연도 흔적을 찾아, 가장 최근 연도가
+// 기준일(RAW.asOf) 기준 1년 이내인지 판정. 연도 흔적이 아예 없으면 null(불명확).
+function paymentRecency(txt){
+  if(/최근\s*(입금|수금|상환|분납)/.test(txt))return true;
+  const years=[];
+  (String(txt).match(/\b20\d{2}\b/g)||[]).forEach(y=>years.push(parseInt(y)));
+  (String(txt).match(/\b(\d{2})\.\d{1,2}\.\d{1,2}\b/g)||[]).forEach(s=>years.push(2000+parseInt(s.split('.')[0])));
+  if(!years.length)return null;
+  const maxY=Math.max(...years);
+  const curY=new Date((RAW&&RAW.asOf)||today()).getFullYear();
+  return maxY>=curY-1;
+}
 // 우선순위 등급: 금융기관 자산건전성 5단계 분류(정상/요주의/고정/회수의문/추정손실) 관행을 차용해
 // "사건 발생여부 + 충당금 커버율 + 최근 상환활동" 3요소로 손실처리 후보를 3등급으로 재분류.
+// 상환활동은 "입금/분납" 단어뿐 아니라 그 기록의 연도까지 확인해, 오래된 기록은 요주의급으로
+// 자동 편입시키지 않고 대신 경고 표시만 남긴다(예: 2년 전 입금기록이 "최근"으로 오판되는 것 방지).
 function woTier(r){
   const mi=M.find(i=>i.rid===r.rid);
   const txt=((mi&&mi.basis)||'')+' '+(r.plan||'')+' '+(r.payNote||'');
-  if(/분납|입금|완제/.test(txt))return{n:3,l:'요주의급',s:'활성 상환중·보류 권장',c:'#0369a1',bg:'#e0f2fe'};
+  const hasPayKeyword=/분납|입금|완제/.test(txt);
+  const recency=hasPayKeyword?paymentRecency(txt):null;
+  if(hasPayKeyword&&recency===true)return{n:3,l:'요주의급',s:'활성 상환중·보류 권장',c:'#0369a1',bg:'#e0f2fe'};
+  const warn=!hasPayKeyword?'':recency===false?'⚠ 입금기록이 오래됨(1년+ 경과) — 최신 상환여부 재확인 필요':'⚠ 입금기록은 있으나 연도 불명확 — 재확인 필요';
   const hasEvent=/폐업/.test(r.name)||r.trait==='폐업'||r.trait==='도주'||(mi&&mi.cls==='관리제외');
   const fullProv=r.ar>0&&r.prov>=r.ar*0.999;
-  if(hasEvent&&fullProv)return{n:1,l:'추정손실급',s:'최우선 손실처리',c:'#b91c1c',bg:'#fee2e2'};
-  return{n:2,l:'회수의문급',s:'개별검토 필요',c:'#b45309',bg:'#fef3c7'};
+  if(hasEvent&&fullProv)return{n:1,l:'추정손실급',s:'최우선 손실처리',c:'#b91c1c',bg:'#fee2e2',warn};
+  return{n:2,l:'회수의문급',s:'개별검토 필요',c:'#b45309',bg:'#fef3c7',warn};
 }
 function woCands(){
   return E.filter(r=>r.ar>0).map(r=>({r,rs:woReasons(r)})).filter(x=>{
@@ -708,7 +725,7 @@ function viewWo(){
   const opts=st=>`<option value="">미검토</option>`+Object.keys(WO_ST).map(k=>`<option value="${k}" ${st===k?'selected':''}>${WO_ST[k].l}</option>`).join('');
   h+='<div class="card" style="padding:0;overflow:auto;max-height:66vh"><table class="dt"><thead><tr><th>#</th><th class="l">거래처</th><th class="l">적요</th><th class="l">매출일</th><th>미수잔액</th><th>충당금</th><th>추가손실</th><th class="l">근거 (자동수집)</th><th class="l">담당</th><th class="l">상태</th></tr></thead><tbody>';
   h+=rows.map((x,i)=>{const r=x.r,w=woOf(r),tier=woTier(r);return `<tr class="clk" onclick="openRow('${r.rid}')">
-    <td>${i+1}</td><td class="l"><b>${esc(r.name)}</b> <span class="chip" style="background:${tier.bg};color:${tier.c};font-size:10px" title="${esc(tier.s)}">${tier.l}</span></td><td class="l memo" title="${esc(r.memo)}">${esc(r.memo)}</td><td class="l">${esc(r.saleDate)}</td>
+    <td>${i+1}</td><td class="l"><b>${esc(r.name)}</b> <span class="chip" style="background:${tier.bg};color:${tier.c};font-size:10px" title="${esc(tier.s)}">${tier.l}</span>${tier.warn?` <span class="chip" style="background:#fee2e2;color:#b91c1c;font-size:10px" title="${esc(tier.warn)}">⚠ 재확인</span>`:''}</td><td class="l memo" title="${esc(r.memo)}">${esc(r.memo)}</td><td class="l">${esc(r.saleDate)}</td>
     <td><b>${fmt(r.ar)}</b></td><td>${fmt(r.prov)}</td><td style="color:${r.ar-r.prov>1000?'#b91c1c':'inherit'};font-weight:700">${fmt(Math.max(0,r.ar-r.prov))}</td>
     <td class="l" style="white-space:normal;min-width:220px">${x.rs.map(s=>`<span class="chip" style="background:#f1f5f9;color:#475569;margin:1px 2px 1px 0">${esc(s)}</span>`).join('')||'-'}</td>
     <td class="l">${esc(r.mgr)}</td>
@@ -911,7 +928,7 @@ function viewBrief(){
   h+='<div class="card"><div class="sec">'+cands.length+'건 전체 명세 <span class="hint">등급순 정렬 · 행 클릭 → 상세</span></div>';
   h+='<div class="tbl-scroll"><table class="dt"><thead><tr><th>#</th><th class="l">거래처</th><th class="l">적요</th><th class="l">등급</th><th>미수잔액</th><th>충당금</th><th>추가손실</th><th class="l">근거</th><th class="l">담당</th></tr></thead><tbody>';
   h+=cands.map((x,i)=>{const r=x.r,tier=woTier(r);return `<tr class="clk" onclick="openRow('${r.rid}')">
-    <td>${i+1}</td><td class="l"><b>${esc(r.name)}</b></td><td class="l memo" title="${esc(r.memo)}">${esc(r.memo)}</td><td class="l"><span class="chip" style="background:${tier.bg};color:${tier.c}">${tier.l}</span></td>
+    <td>${i+1}</td><td class="l"><b>${esc(r.name)}</b></td><td class="l memo" title="${esc(r.memo)}">${esc(r.memo)}</td><td class="l"><span class="chip" style="background:${tier.bg};color:${tier.c}">${tier.l}</span>${tier.warn?` <span class="chip" style="background:#fee2e2;color:#b91c1c" title="${esc(tier.warn)}">⚠ 재확인</span>`:''}</td>
     <td><b>${fmt(r.ar)}</b></td><td>${fmt(r.prov)}</td><td style="font-weight:700">${fmt(Math.max(0,r.ar-r.prov))}</td>
     <td class="l" style="white-space:normal;min-width:200px">${x.rs.map(s=>`<span class="chip" style="background:#f1f5f9;color:#475569;margin:1px 2px 1px 0">${esc(s)}</span>`).join('')||'-'}</td>
     <td class="l">${esc(r.mgr)}</td></tr>`;}).join('');
