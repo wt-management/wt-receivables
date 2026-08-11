@@ -113,8 +113,9 @@ table.rt{width:100%;border-collapse:collapse;font-size:12.5px;min-width:700px}
 #toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:99;display:none;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 /* 임원 보고(인쇄) */
 .rpt{max-width:none}
-.rpt-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 40px;align-items:start}
-.qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;align-items:start}
+/* 1fr 은 표의 최소폭이 바닥이라 열이 많은 표가 들어오면 칸이 카드 밖으로 밀려난다 → minmax(0,·) */
+.rpt-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 40px;align-items:start}
+.qa-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 14px;align-items:start}
 @media(max-width:1150px){.rpt-grid,.qa-grid{display:block}}
 @media print{.rpt-grid,.qa-grid{display:block}}
 .rpt h1{font-size:20px;color:var(--ink);text-align:center;margin-bottom:2px}
