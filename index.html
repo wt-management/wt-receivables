@@ -884,8 +884,8 @@ function openChange(i){
   const c=(RAW.changes||[])[i];if(!c)return;
   const sect=(title,arr,color,extra)=>{if(!arr||!arr.length)return '';
     return `<div class="sec" style="margin-top:14px">${title} <span class="hint">${arr.length}건 · ${eok2(arr.reduce((s,x)=>s+x.v,0))}</span></div>
-    <table class="dt"><thead><tr><th class="l">거래처</th><th class="l">적요</th><th>${extra||'금액(원)'}</th><th class="l">담당</th><th class="l">유형</th></tr></thead><tbody>`
-    +arr.slice().sort((a,b)=>b.v-a.v).map(x=>`<tr><td class="l"><b>${esc(x.n)}</b></td><td class="l memo" title="${esc(x.m)}">${esc(x.m)}</td><td style="color:${color};font-weight:700">${fmt(x.v)}${x.d0!=null?`<div class="hint">잔여 ${fmt(x.d0)}</div>`:''}</td><td class="l">${esc(x.g)}</td><td class="l">${typeChip(x.t)}</td></tr>`).join('')+'</tbody></table>';};
+    <table class="dt"><thead><tr><th class="l">거래처</th><th class="l">적요</th><th>${extra||'금액(원)'}</th><th class="l">수금일</th><th class="l">담당</th><th class="l">유형</th></tr></thead><tbody>`
+    +arr.slice().sort((a,b)=>b.v-a.v).map(x=>`<tr><td class="l"><b>${esc(x.n)}</b></td><td class="l memo" title="${esc(x.m)}">${esc(x.m)}</td><td style="color:${color};font-weight:700">${fmt(x.v)}${x.d0!=null?`<div class="hint">잔여 ${fmt(x.d0)}</div>`:''}</td><td class="l">${esc(x.cd||'-')}</td><td class="l">${esc(x.g)}</td><td class="l">${typeChip(x.t)}</td></tr>`).join('')+'</tbody></table>';};
   let h=`<div class="mhd"><div><h3>주간 변동 내역</h3><div class="hint">${c.prev} → ${c.d} · 수금 ${eok2(c.sumColl)} · 신규 ${eok2(c.sumNew)}${c.adj&&c.adj.length?' · 취소·조정 '+eok2(c.sumAdj):''}</div></div><button class="x" onclick="closeModal()">✕</button></div><div class="mbody">`;
   h+=sect('💰 전액 수금',c.coll,'#15803d');
   h+=sect('💧 부분 수금',c.red,'#0891b2','수금액(원)');
@@ -1073,8 +1073,8 @@ function diffRows(prevRows,curRows,d,prevD){
       else if(o.ar>0){neu.push({n:o.name,v:o.ar,m:o.memo,g:o.mgr,t:o.type});return;}
       else return;
     }
-    if(p.ar>0&&o.ar===0)coll.push({n:o.name,v:p.ar,m:o.memo,g:o.mgr,t:o.type});
-    else if(o.ar>0&&o.ar<p.ar)red.push({n:o.name,v:p.ar-o.ar,d0:o.ar,m:o.memo,g:o.mgr,t:o.type});
+    if(p.ar>0&&o.ar===0)coll.push({n:o.name,v:p.ar,m:o.memo,g:o.mgr,t:o.type,cd:o.collDate||''});
+    else if(o.ar>0&&o.ar<p.ar)red.push({n:o.name,v:p.ar-o.ar,d0:o.ar,m:o.memo,g:o.mgr,t:o.type,cd:o.collDate||''});
   });
   gone.forEach(o=>{if(o.ar>0)adj.push({n:o.name,v:o.ar,m:o.memo,g:o.mgr,t:o.type});});
   return {d,prev:prevD,coll,red,new:neu,adj,
