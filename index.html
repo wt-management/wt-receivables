@@ -1024,7 +1024,7 @@ function viewBrief(){
 let _up=null;
 function viewUpload(){
   let h='<div class="card"><div class="sec">재무팀 주간 엑셀 업로드</div>';
-  h+='<div style="font-size:13px;line-height:1.7;color:var(--body)">미수금세부현황 엑셀(주간 시트 <b>YYMMDD</b> 형식 포함)을 올리면:<br>· 최신 주간 시트 → 채권 상세 전체 갱신<br>· 모든 주간 시트 → 주간 추이에 병합 누적(기존 이력 유지)<br>· <b>미수금_관리대상_*</b> 시트가 있으면 관리대상 분류도 갱신<br>· 사이트에서 수정한 수금계획·의견·분류는 <b>그대로 유지</b>됩니다(원본 병합 방식)</div>';
+  h+='<div style="font-size:13px;line-height:1.7;color:var(--body)">미수금세부현황 엑셀(주간 시트 <b>YYMMDD</b> 형식, 또는 <b>국내영업</b> 단일 시트)을 올리면:<br>· 최신 주간 시트(또는 국내영업 시트) → 채권 상세 전체 갱신<br>· 모든 주간 시트(또는 국내영업 시트 + 파일명 날짜) → 주간 추이에 병합 누적(기존 이력 유지)<br>· <b>미수금_관리대상_*</b> 시트가 있으면 관리대상 분류도 갱신<br>· 사이트에서 수정한 수금계획·의견·분류는 <b>그대로 유지</b>됩니다(원본 병합 방식)</div>';
   h+='<div style="margin-top:16px"><input type="file" id="up-file" accept=".xlsx,.xls" onchange="onUpFile(this.files[0])"></div>';
   h+='<div id="up-prev" style="margin-top:16px"></div></div>';
   h+=`<div class="card"><div class="sec">현재 데이터</div><div style="font-size:13px;line-height:1.8">기준일 <b>${RAW.asOf}</b> · 채권 ${E.length}건 · 주간 스냅샷 ${(RAW.weekly||[]).length}개 · 관리대상 ${M.length}건 · 마지막 갱신 ${RAW.updatedAt||'-'}</div></div>`;
@@ -1089,20 +1089,40 @@ function onUpFile(file){
     try{
       const wb=XLSX.read(e.target.result,{type:'array',cellDates:false});
       const wnames=wb.SheetNames.filter(n=>/^\d{6}$/.test(n)).sort();
-      if(!wnames.length){document.getElementById('up-prev').innerHTML='<div class="editable-note">주간 시트(YYMMDD)를 찾지 못했습니다.</div>';return;}
-      // 모든 주간 시트 → 집계+행단위 변동(diff), 최신 시트 → 상세
       const assignRid=rows=>{const seen={};rows.forEach(o=>{const b=rid(o.code+'|'+o.saleDate+'|'+String(Math.trunc(o.amt))+'|'+o.memo);const n=seen[b]||0;seen[b]=n+1;o.rid=n===0?b:b+'-'+n;});};
-      const weekly=[],fileChanges=[];let latestRows=null,latestD='',prevRows=null,prevD='';
-      wnames.forEach(sn=>{
-        const rows=parseWeeklySheet(wb.Sheets[sn]);if(!rows)return;
-        assignRid(rows);
-        const d='20'+sn.slice(0,2)+'-'+sn.slice(2,4)+'-'+sn.slice(4,6);
-        const types={};rows.forEach(o=>{const t=o.type||'미분류';types[t]=types[t]||{cnt:0,ar:0};types[t].cnt++;types[t].ar+=o.ar;});
-        weekly.push({d,cnt:rows.length,amt:rows.reduce((s,o)=>s+o.amt,0),coll:rows.reduce((s,o)=>s+o.coll,0),bad:rows.reduce((s,o)=>s+o.bad,0),ar:rows.reduce((s,o)=>s+o.ar,0),prov:rows.reduce((s,o)=>s+o.prov,0),types});
-        if(prevRows){const ch=diffRows(prevRows,rows,d,prevD);if(ch.coll.length||ch.red.length||ch.new.length||ch.adj.length)fileChanges.push(ch);}
-        prevRows=rows;prevD=d;
-        if(sn===wnames[wnames.length-1]){latestRows=rows;latestD=d;}
-      });
+      const weekAgg=rows=>{const types={};rows.forEach(o=>{const t=o.type||'미분류';types[t]=types[t]||{cnt:0,ar:0};types[t].cnt++;types[t].ar+=o.ar;});
+        return{cnt:rows.length,amt:rows.reduce((s,o)=>s+o.amt,0),coll:rows.reduce((s,o)=>s+o.coll,0),bad:rows.reduce((s,o)=>s+o.bad,0),ar:rows.reduce((s,o)=>s+o.ar,0),prov:rows.reduce((s,o)=>s+o.prov,0),types};};
+      let weekly=[],fileChanges=[],latestRows=null,latestD='';
+      if(wnames.length){
+        // 기존 방식: 재무팀 파일에 주간별(YYMMDD) 시트가 여러 개 들어있던 시절
+        let prevRows=null,prevD='';
+        wnames.forEach(sn=>{
+          const rows=parseWeeklySheet(wb.Sheets[sn]);if(!rows)return;
+          assignRid(rows);
+          const d='20'+sn.slice(0,2)+'-'+sn.slice(2,4)+'-'+sn.slice(4,6);
+          weekly.push({d,...weekAgg(rows)});
+          if(prevRows){const ch=diffRows(prevRows,rows,d,prevD);if(ch.coll.length||ch.red.length||ch.new.length||ch.adj.length)fileChanges.push(ch);}
+          prevRows=rows;prevD=d;
+          if(sn===wnames[wnames.length-1]){latestRows=rows;latestD=d;}
+        });
+      }else{
+        // 신규 방식(2026-09~): 주간시트 대신 "국내영업" 단일 시트로 통합. 날짜는 파일명에서 추출.
+        const dsName=wb.SheetNames.find(n=>n==='국내영업')||wb.SheetNames.find(n=>n.indexOf('국내영업')>=0);
+        if(!dsName){document.getElementById('up-prev').innerHTML='<div class="editable-note">주간 시트(YYMMDD)도, "국내영업" 시트도 찾지 못했습니다.</div>';return;}
+        const rows=parseWeeklySheet(wb.Sheets[dsName]);
+        if(rows){
+          assignRid(rows);
+          const fn=file.name||'';
+          const m8=fn.match(/(\d{8})(?=\.[^.]+$)/),m6=fn.match(/(\d{6})(?=\.[^.]+$)/);
+          const d=m8?m8[1].slice(0,4)+'-'+m8[1].slice(4,6)+'-'+m8[1].slice(6,8):m6?'20'+m6[1].slice(0,2)+'-'+m6[1].slice(2,4)+'-'+m6[1].slice(4,6):today();
+          weekly=[{d,...weekAgg(rows)}];
+          if(RAW.rows&&RAW.rows.length&&RAW.asOf&&d>RAW.asOf){
+            const ch=diffRows(RAW.rows,rows,d,RAW.asOf);
+            if(ch.coll.length||ch.red.length||ch.new.length||ch.adj.length)fileChanges=[ch];
+          }
+          latestRows=rows;latestD=d;
+        }
+      }
       if(!latestRows){document.getElementById('up-prev').innerHTML='<div class="editable-note">주간 시트 파싱 실패 — 헤더 형식을 확인해주세요.</div>';return;}
       // 관리대상 시트(있으면)
       let mgmt=RAW.mgmt||{asOf:'',base:'',summary:{},items:[]};
