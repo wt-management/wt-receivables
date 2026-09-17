@@ -1124,6 +1124,14 @@ function onUpFile(file){
         }
       }
       if(!latestRows){document.getElementById('up-prev').innerHTML='<div class="editable-note">주간 시트 파싱 실패 — 헤더 형식을 확인해주세요.</div>';return;}
+      // 같은 날짜 재업로드(예: 형식만 바뀐 파일 재수신) — 기존 변동내역에 수금일이 비어있으면 이번 파일 기준으로 보강
+      if(latestD===RAW.asOf&&RAW.changes&&RAW.changes.length){
+        const last=RAW.changes[RAW.changes.length-1];
+        if(last&&last.d===latestD){
+          const byName={};latestRows.forEach(o=>{if(!byName[o.name])byName[o.name]=o;});
+          ['coll','red'].forEach(k=>{(last[k]||[]).forEach(x=>{if(!x.cd){const m=byName[x.n];if(m&&m.collDate)x.cd=m.collDate;}});});
+        }
+      }
       // 관리대상 시트(있으면)
       let mgmt=RAW.mgmt||{asOf:'',base:'',summary:{},items:[]};
       const mgName=wb.SheetNames.find(n=>n.indexOf('미수금_관리대상')===0);
