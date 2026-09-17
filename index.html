@@ -682,15 +682,15 @@ function viewList(){
     return h;
   }
   h+='<div class="card" style="padding:0;overflow:auto;max-height:72vh"><table class="dt"><thead><tr>'
-    +`<th class="l sortable" onclick="setSort('name')">거래처${arr('name')}</th><th class="l sortable" onclick="setSort('saleDate')">매출일${arr('saleDate')}</th><th class="l">적요</th><th class="sortable" onclick="setSort('amt')">원화금액${arr('amt')}</th><th class="sortable" onclick="setSort('coll')">수금${arr('coll')}</th><th class="sortable" onclick="setSort('ar')">미수채권${arr('ar')}</th><th>충당금</th><th class="l sortable" onclick="setSort('type')">유형${arr('type')}</th><th class="l sortable" onclick="setSort('mgr')">담당${arr('mgr')}</th><th class="l sortable" onclick="setSort('nextDate')">조치일${arr('nextDate')}</th><th class="l">수금계획</th></tr></thead><tbody>`;
+    +`<th class="l sortable" onclick="setSort('name')">거래처${arr('name')}</th><th class="l sortable" onclick="setSort('saleDate')">매출일${arr('saleDate')}</th><th class="l">적요</th><th class="sortable" onclick="setSort('amt')">원화금액${arr('amt')}</th><th class="sortable" onclick="setSort('coll')">수금${arr('coll')}</th><th class="l sortable" onclick="setSort('collDate')">수금일${arr('collDate')}</th><th class="sortable" onclick="setSort('ar')">미수채권${arr('ar')}</th><th>충당금</th><th class="l sortable" onclick="setSort('type')">유형${arr('type')}</th><th class="l sortable" onclick="setSort('mgr')">담당${arr('mgr')}</th><th class="l sortable" onclick="setSort('nextDate')">조치일${arr('nextDate')}</th><th class="l">수금계획</th></tr></thead><tbody>`;
   h+=rows.slice(0,600).map(r=>`<tr class="clk" onclick="openRow('${r.rid}')">
     <td class="l"><b>${esc(r.name)}</b>${r._edited?' <span class="chip" style="background:#ecfdf5;color:#047857">수정</span>':''}</td>
     <td class="l">${esc(r.saleDate)}</td><td class="l memo" title="${esc(r.memo)}">${esc(r.memo)}</td>
-    <td>${fmt(r.amt)}</td><td>${fmt(r.coll)}</td><td><b style="color:${r.ar>0?'#b45309':'inherit'}">${fmt(r.ar)}</b></td><td>${fmt(r.prov)}</td>
+    <td>${fmt(r.amt)}</td><td>${fmt(r.coll)}</td><td class="l">${esc(r.collDate)||'-'}</td><td><b style="color:${r.ar>0?'#b45309':'inherit'}">${fmt(r.ar)}</b></td><td>${fmt(r.prov)}</td>
     <td class="l">${typeChip(r.type)}</td><td class="l">${esc(r.mgr)}</td>
     <td class="l">${r.nextDate?`<span class="chip" style="background:${r.nextDate<=today()?'#fee2e2':'#dcfce7'};color:${r.nextDate<=today()?'#b91c1c':'#15803d'}">${r.nextDate}</span>`:'-'}</td>
     <td class="l memo" title="${esc(r.plan)}">${esc(r.plan)}</td></tr>`).join('')
-    ||'<tr><td colspan="11" style="text-align:center;padding:26px;color:var(--muted)">조건에 맞는 채권이 없습니다</td></tr>';
+    ||'<tr><td colspan="12" style="text-align:center;padding:26px;color:var(--muted)">조건에 맞는 채권이 없습니다</td></tr>';
   h+='</tbody></table></div>';
   if(rows.length>600)h+=`<div class="hint" style="margin-top:8px">상위 600건만 표시 (필터로 좁혀주세요 · CSV는 전체 내보냄)</div>`;
   return h;
